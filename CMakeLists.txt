@@ -26,7 +26,7 @@ include_directories(ext/nanogui/include/)
 # Program to embed shaders.
 include_directories(ext/embed-resource)
 add_subdirectory(ext/embed-resource)
-embed_resources(Shaders shaders/vertex.glsl shaders/fragment.glsl)
+embed_resources(Shaders shaders/vertex.glsl shaders/fragment.glsl shaders/geometry.glsl)
 
 # Compile a target using NanoGUI
 file(GLOB Sources "src/*.cpp")

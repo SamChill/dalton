@@ -1,6 +1,9 @@
-#version 330
-uniform mat4 modelViewProj;
+#version 330 core
 in vec3 position;
-void main() {
-    gl_Position = modelViewProj * vec4(position, 1.0);
+
+uniform mat4 view;
+
+void main()
+{
+    gl_Position = view*vec4(position, 1.0); 
 }
