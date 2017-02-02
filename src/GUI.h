@@ -21,4 +21,5 @@ private:
     Eigen::MatrixXf positions_;
     nanogui::Arcball arcball_;
     double render_time_;
+    float gradient_;
 };

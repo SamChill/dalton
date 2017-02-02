@@ -22,10 +22,11 @@ GUI::GUI() :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
     arcball_(2.0f),
     radius_(1.00f),
-    zoom_(1.0f),
+    zoom_(0.0f),
     num_atoms_(10),
     positions_(Eigen::MatrixXf::Random(3, num_atoms_)),
-    render_time_(glfwGetTime())
+    render_time_(glfwGetTime()),
+    gradient_(0.25)
 {
     glfwWindowHint(GLFW_SAMPLES, 0);
     // Setup Widgets.
@@ -36,6 +37,11 @@ GUI::GUI() :
     radius_box->setSpinnable(true);
     radius_box->setMinValue(0.001);
     radius_box->setValueIncrement(0.02);
+
+    FloatBox<float> *gradient_box = gui->addVariable("gradient", gradient_);
+    gradient_box->setSpinnable(true);
+    gradient_box->setMinValue(0.00);
+    gradient_box->setValueIncrement(0.05);
 
     IntBox<int> *num_atoms_box = gui->addVariable("number of atoms", num_atoms_);
     num_atoms_box->setSpinnable(true);
@@ -100,9 +106,9 @@ void GUI::drawContents() {
 
     // Make model matrix.
     Matrix4f model = scale(Eigen::Vector3f(
-        1.0/(positions_.row(0).maxCoeff() - positions_.row(0).minCoeff()),
-        1.0/(positions_.row(1).maxCoeff() - positions_.row(1).minCoeff()),
-        1.0/(positions_.row(2).maxCoeff() - positions_.row(2).minCoeff())
+        1.0/(positions_.row(0).maxCoeff() - positions_.row(0).minCoeff() + 2*radius_),
+        1.0/(positions_.row(1).maxCoeff() - positions_.row(1).minCoeff() + 2*radius_),
+        1.0/(positions_.row(2).maxCoeff() - positions_.row(2).minCoeff() + 2*radius_)
     ));
 
     shader_.setUniform("model", model);
@@ -114,11 +120,12 @@ void GUI::drawContents() {
     shader_.setUniform("view", view);
 
     // Set zoom.
-    Matrix4f zoom = scale(Eigen::Vector3f(std::exp(zoom_ - 1.0), std::exp(zoom_ - 1.0), 1));
+    Matrix4f zoom = scale(Eigen::Vector3f(std::exp(zoom_), std::exp(zoom_), 1));
     shader_.setUniform("zoom", zoom);
 
     // Update uniforms.
     shader_.setUniform("radius", radius_/10.0);
+    shader_.setUniform("gradient", gradient_);
 
    // Draw points.
     glEnable(GL_DEPTH_TEST);
