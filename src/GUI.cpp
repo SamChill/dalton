@@ -31,12 +31,17 @@ GUI::GUI() :
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Controls");
 
-    FloatBox<float> *radiusBox = gui->addVariable("radius", radius_);
-    radiusBox->setSpinnable(true);
+    FloatBox<float> *radius_box = gui->addVariable("radius", radius_);
+    radius_box->setSpinnable(true);
+    radius_box->setMinValue(0.001);
+    radius_box->setValueIncrement(0.02);
 
-    gui->addVariable("number of atoms", num_atoms_);
+    IntBox<int> *num_atoms_box = gui->addVariable("number of atoms", num_atoms_);
+    num_atoms_box->setSpinnable(true);
+    num_atoms_box->setValueIncrement(10);
+    num_atoms_box->setMinValue(1);
 
-    gui->addButton("Update", [this]() { updatePositions(); });
+    gui->addButton("Generate", [this]() { updatePositions(); });
 
     // Finalize widget setup.
     performLayout();
