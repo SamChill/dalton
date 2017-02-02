@@ -24,7 +24,8 @@ GUI::GUI() :
     radius_(1.00f),
     zoom_(1.0f),
     num_atoms_(10),
-    positions_(Eigen::MatrixXf::Random(3, num_atoms_))
+    positions_(Eigen::MatrixXf::Random(3, num_atoms_)),
+    render_time_(glfwGetTime())
 {
     glfwWindowHint(GLFW_SAMPLES, 0);
     // Setup Widgets.
@@ -124,4 +125,9 @@ void GUI::drawContents() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_.drawIndexed(GL_POINTS, 0, positions_.cols());
     glDisable(GL_DEPTH_TEST);
+
+    double fps = 1.0 / (glfwGetTime() - render_time_);
+    std::string caption = "Dalton fps: " + std::to_string(fps);
+    setCaption(caption);
+    render_time_ = glfwGetTime();
 }
