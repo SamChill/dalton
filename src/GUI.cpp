@@ -21,13 +21,22 @@ using namespace nanogui;
 GUI::GUI() :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
     arcball_(2.0f),
-    radius_(1.0f)
+    radius_(1.00f),
+    zoom_(1.0f),
+    num_atoms_(10),
+    positions_(Eigen::MatrixXf::Random(3, num_atoms_))
 {
+    glfwWindowHint(GLFW_SAMPLES, 0);
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Controls");
+
     FloatBox<float> *radiusBox = gui->addVariable("radius", radius_);
     radiusBox->setSpinnable(true);
+
+    gui->addVariable("number of atoms", num_atoms_);
+
+    gui->addButton("Update", [this]() { updatePositions(); });
 
     // Finalize widget setup.
     performLayout();
@@ -42,21 +51,6 @@ GUI::GUI() :
         string(fragmentShader.data(), fragmentShader.size()),
         string(geometryShader.data(), geometryShader.size())
     );
-
-    //MatrixXu indices(3, 2);
-    //indices.col(0) << 0, 1, 3;
-    //indices.col(1) << 1, 2, 3;
-
-    Eigen::MatrixXf positions = 0.5*Eigen::MatrixXf::Random(3, 10);
-
-    MatrixXu indices = MatrixXu::Zero(positions.cols(), 1);
-    for (size_t i=0; i<positions.cols(); i++) {
-        indices(i,0) = i;
-    }
-
-    shader_.bind();
-    shader_.uploadIndices(indices);
-    shader_.uploadAttrib("position", positions);
 }
 
 GUI::~GUI() {
@@ -65,32 +59,64 @@ GUI::~GUI() {
 
 bool GUI::scrollEvent(const Eigen::Vector2i &p, const Eigen::Vector2f &rel) {
     if (!nanogui::Screen::scrollEvent(p, rel)) {
-        std::cout << p << rel << std::endl;
+        zoom_ += 0.1*rel.y();
     }
 }
 
 bool GUI::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifiers) {
     if (!nanogui::Screen::mouseButtonEvent(p, button, down, modifiers)) {
-        arcball_.button(p, down);
+        if (button == 0) {
+            arcball_.button(p, down);
+        }
     }
+}
+
+void GUI::updatePositions()
+{
+    positions_ = Eigen::MatrixXf::Random(3, num_atoms_);
 }
 
 void GUI::drawContents() {
     shader_.bind();
 
-    arcball_.setSize(mSize);
-    arcball_.motion(mousePos());
+    MatrixXu indices = MatrixXu::Zero(positions_.cols(), 1);
+    for (size_t i=0; i<positions_.cols(); i++) {
+        indices(i,0) = i;
+    }
+
+    shader_.uploadIndices(indices);
+    shader_.uploadAttrib("sphere_center", positions_);
+
     // Make perspective matrix.
     float aspectRatio = float(mSize.x()) / float(mSize.y());
     Matrix4f pmat = ortho(-aspectRatio, aspectRatio, -1.0, 1.0, -1.0, 1.0);
-    shader_.setUniform("pmat", pmat);
+    shader_.setUniform("perspective", pmat);
 
+    // Make model matrix.
+    Matrix4f model = scale(Eigen::Vector3f(
+        1.0/(positions_.row(0).maxCoeff() - positions_.row(0).minCoeff()),
+        1.0/(positions_.row(1).maxCoeff() - positions_.row(1).minCoeff()),
+        1.0/(positions_.row(2).maxCoeff() - positions_.row(2).minCoeff())
+    ));
+
+    shader_.setUniform("model", model);
+
+    // Setup view matrix.
+    arcball_.setSize(mSize);
+    arcball_.motion(mousePos());
     Matrix4f view = arcball_.matrix();
     shader_.setUniform("view", view);
+
+    // Set zoom.
+    Matrix4f zoom = scale(Eigen::Vector3f(std::exp(zoom_ - 1.0), std::exp(zoom_ - 1.0), 1));
+    shader_.setUniform("zoom", zoom);
 
     // Update uniforms.
     shader_.setUniform("radius", radius_/10.0);
 
-    // Draw points.
-    shader_.drawIndexed(GL_POINTS, 0, 10);
+   // Draw points.
+    glEnable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    shader_.drawIndexed(GL_POINTS, 0, positions_.cols());
+    glDisable(GL_DEPTH_TEST);
 }
