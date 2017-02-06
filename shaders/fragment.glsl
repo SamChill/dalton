@@ -23,13 +23,10 @@ void main()
         color.a = 1.0;
 
         // Determine the global z position.
-        float global_z = sphere_coordinates.z + radius*local.z;
-
-        // Rescale z to be from 0 to 1.
-        float depth = (global_z + 1.0) / 2.0;
+        float depth = (sphere_coordinates.z + local.z + 10.0)/21.0;
 
         // Darken according to global depth.
-        color.rgb *= vec3(depth) + 0.1;
+        color.rgb *= vec3(depth);
 
         gl_FragDepth = 1-depth;
     }else{

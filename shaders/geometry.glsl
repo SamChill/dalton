@@ -7,28 +7,27 @@ layout (triangle_strip, max_vertices=4) out;
 out vec2 square_coordinates;
 out vec3 sphere_coordinates;
 
-uniform mat4 perspective;
+uniform mat4 projection;
 uniform float radius;
-uniform mat4 zoom;
 
 void main() {    
     vec4 sphere_center = gl_in[0].gl_Position;
     sphere_coordinates = vec3(sphere_center);
 
     // Generate a square centered on the sphere.
-    gl_Position = sphere_center + zoom*perspective*vec4(-radius, -radius, 0.0, 0.0);
+    gl_Position = projection * (sphere_center + vec4(-radius, -radius, 0.0, 0.0));
     square_coordinates = vec2(-1, -1);
     EmitVertex();   
 
-    gl_Position = sphere_center + zoom*perspective*vec4(radius, -radius, 0.0, 0.0);
+    gl_Position = projection * (sphere_center + vec4(radius, -radius, 0.0, 0.0));
     square_coordinates = vec2(1, -1);
     EmitVertex();
 
-    gl_Position = sphere_center + zoom*perspective*vec4(-radius, radius, 0.0, 0.0);
+    gl_Position = projection * (sphere_center + vec4(-radius, radius, 0.0, 0.0));
     square_coordinates = vec2(-1, 1);
     EmitVertex();
 
-    gl_Position = sphere_center + zoom*perspective*vec4(radius, radius, 0.0, 0.0);
+    gl_Position = projection * (sphere_center + vec4(radius, radius, 0.0, 0.0));
     square_coordinates = vec2(1, 1);
     EmitVertex();
 

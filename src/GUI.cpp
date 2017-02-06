@@ -1,5 +1,5 @@
 #include "GUI.h"
-
+#include <unistd.h>
 #include <nanogui/screen.h>
 #include <nanogui/opengl.h>
 #include <nanogui/glutil.h>
@@ -21,12 +21,13 @@ using namespace nanogui;
 GUI::GUI() :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
     arcball_(2.0f),
-    radius_(1.00f),
+    radius_(0.5f),
     zoom_(0.0f),
-    num_atoms_(10),
-    positions_(Eigen::MatrixXf::Random(3, num_atoms_)),
+    num_atoms_(2),
+    atoms_(AtomMatrix::Random(num_atoms_, 3)),
     render_time_(glfwGetTime()),
-    gradient_(0.25)
+    gradient_(0.5),
+    frame_(0)
 {
     glfwWindowHint(GLFW_SAMPLES, 0);
     // Setup Widgets.
@@ -48,7 +49,18 @@ GUI::GUI() :
     num_atoms_box->setValueIncrement(10);
     num_atoms_box->setMinValue(1);
 
+    fps_label_ = new Label(window, "0.0");
+    gui->addWidget("fps", fps_label_);
+
+    energy_label_ = new Label(window, "0.0");
+    gui->addWidget("energy", energy_label_);
+
+    force_label_ = new Label(window, "0.0");
+    gui->addWidget("force", force_label_);
+
     gui->addButton("Generate", [this]() { updatePositions(); });
+
+    gui->addButton("Save", [this]() { atoms_.xyz("/home/chill/dalton.xyz"); });
 
     // Finalize widget setup.
     performLayout();
@@ -63,6 +75,8 @@ GUI::GUI() :
         string(fragmentShader.data(), fragmentShader.size()),
         string(geometryShader.data(), geometryShader.size())
     );
+
+    shader_.bind();
 }
 
 GUI::~GUI() {
@@ -71,7 +85,7 @@ GUI::~GUI() {
 
 bool GUI::scrollEvent(const Eigen::Vector2i &p, const Eigen::Vector2f &rel) {
     if (!nanogui::Screen::scrollEvent(p, rel)) {
-        zoom_ += 0.1*rel.y();
+        zoom_ -= 0.1*rel.y();
     }
 }
 
@@ -85,56 +99,59 @@ bool GUI::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifie
 
 void GUI::updatePositions()
 {
-    positions_ = Eigen::MatrixXf::Random(3, num_atoms_);
+    atoms_.setCoordinates(AtomMatrix::Random(num_atoms_, 3));
 }
 
 void GUI::drawContents() {
     shader_.bind();
 
-    MatrixXu indices = MatrixXu::Zero(positions_.cols(), 1);
-    for (size_t i=0; i<positions_.cols(); i++) {
-        indices(i,0) = i;
-    }
+    AtomMatrix sphere_centers = atoms_.coordinates();
 
-    shader_.uploadIndices(indices);
-    shader_.uploadAttrib("sphere_center", positions_);
+    shader_.uploadAttrib("sphere_center", sphere_centers.transpose());
 
     // Make perspective matrix.
-    float aspectRatio = float(mSize.x()) / float(mSize.y());
-    Matrix4f pmat = ortho(-aspectRatio, aspectRatio, -1.0, 1.0, -1.0, 1.0);
-    shader_.setUniform("perspective", pmat);
+    float aspect_ratio = float(mSize.x()) / float(mSize.y());
+    float zoom = std::exp(zoom_);
+    Matrix4f projection = ortho(-10.0*zoom*aspect_ratio, 10.0*zoom*aspect_ratio, -10.0*zoom, 10.0*zoom, -10.0, 10.0);
+    shader_.setUniform("projection", projection);
 
-    // Make model matrix.
-    Matrix4f model = scale(Eigen::Vector3f(
-        1.0/(positions_.row(0).maxCoeff() - positions_.row(0).minCoeff() + 2*radius_),
-        1.0/(positions_.row(1).maxCoeff() - positions_.row(1).minCoeff() + 2*radius_),
-        1.0/(positions_.row(2).maxCoeff() - positions_.row(2).minCoeff() + 2*radius_)
-    ));
-
-    shader_.setUniform("model", model);
-
-    // Setup view matrix.
+    // Setup camera matrix.
     arcball_.setSize(mSize);
     arcball_.motion(mousePos());
     Matrix4f view = arcball_.matrix();
+    //Matrix4f zoom = scale(Eigen::Vector3f(std::exp(zoom_), std::exp(zoom_), 1));
     shader_.setUniform("view", view);
 
-    // Set zoom.
-    Matrix4f zoom = scale(Eigen::Vector3f(std::exp(zoom_), std::exp(zoom_), 1));
-    shader_.setUniform("zoom", zoom);
-
     // Update uniforms.
-    shader_.setUniform("radius", radius_/10.0);
+    shader_.setUniform("radius", radius_);
     shader_.setUniform("gradient", gradient_);
 
-   // Draw points.
+    // Draw points.
     glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shader_.drawIndexed(GL_POINTS, 0, positions_.cols());
+    shader_.drawArray(GL_POINTS, 0, sphere_centers.rows());
     glDisable(GL_DEPTH_TEST);
 
-    double fps = 1.0 / (glfwGetTime() - render_time_);
-    std::string caption = "Dalton fps: " + std::to_string(fps);
-    setCaption(caption);
-    render_time_ = glfwGetTime();
+
+    {
+        float alpha = 1/1000.0;
+        AtomMatrix step = alpha * atoms_.forces();
+        if (step.norm() > 0.2) {
+            step = step.normalized() * 0.2;
+        }
+        AtomMatrix new_sphere_centers = sphere_centers + step;
+        atoms_.setCoordinates(new_sphere_centers);
+    }
+
+    //fps_label_->setCaption(std::to_string(fps).substr(0,4));
+    energy_label_->setCaption(std::to_string(atoms_.energy()).substr(0,7));
+    force_label_->setCaption(std::to_string(atoms_.forces().norm()).substr(0,7));
+
+    frame_ += 1;
+    if (glfwGetTime() - render_time_ > 1.0) {
+        double fps = frame_ / (glfwGetTime() - render_time_);
+        render_time_ = glfwGetTime();
+        fps_label_->setCaption(std::to_string(fps).substr(0,7));
+        frame_ = 0;
+    }
 }

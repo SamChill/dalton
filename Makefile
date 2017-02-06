@@ -4,6 +4,10 @@ all: submodule_check
 	mkdir -p build
 	cd build && cmake .. && $(MAKE)
 
+debug: submodule_check
+	mkdir -p build
+	cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && $(MAKE)
+	gdb build/dalton
 
 clean:
 	rm -rf build

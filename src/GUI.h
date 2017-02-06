@@ -1,6 +1,7 @@
 #include <nanogui/screen.h>
 #include <nanogui/glutil.h>
-#include "AtomMatrix.h"
+#include <nanogui/label.h>
+#include "Atoms.h"
 
 class GUI : public nanogui::Screen {
 public:
@@ -18,8 +19,12 @@ private:
     float radius_;
     float zoom_;
     int num_atoms_;
-    Eigen::MatrixXf positions_;
+    Atoms atoms_;
     nanogui::Arcball arcball_;
     double render_time_;
     float gradient_;
+    nanogui::Label *energy_label_;
+    nanogui::Label *force_label_;
+    nanogui::Label *fps_label_;
+    int frame_;
 };
