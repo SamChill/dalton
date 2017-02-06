@@ -21,15 +21,13 @@ using namespace nanogui;
 GUI::GUI() :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
     arcball_(2.0f),
-    radius_(0.5f),
+    radius_(0.56123f),
     zoom_(0.0f),
-    num_atoms_(2),
-    atoms_(AtomMatrix::Random(num_atoms_, 3)),
+    num_atoms_(13),
     render_time_(glfwGetTime()),
     gradient_(0.5),
     frame_(0)
 {
-    glfwWindowHint(GLFW_SAMPLES, 0);
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Controls");
@@ -77,6 +75,7 @@ GUI::GUI() :
     );
 
     shader_.bind();
+    updatePositions();
 }
 
 GUI::~GUI() {
@@ -99,7 +98,7 @@ bool GUI::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifie
 
 void GUI::updatePositions()
 {
-    atoms_.setCoordinates(AtomMatrix::Random(num_atoms_, 3));
+    atoms_.setCoordinates(2*AtomMatrix::Random(num_atoms_, 3));
 }
 
 void GUI::drawContents() {
@@ -143,7 +142,6 @@ void GUI::drawContents() {
         atoms_.setCoordinates(new_sphere_centers);
     }
 
-    //fps_label_->setCaption(std::to_string(fps).substr(0,4));
     energy_label_->setCaption(std::to_string(atoms_.energy()).substr(0,7));
     force_label_->setCaption(std::to_string(atoms_.forces().norm()).substr(0,7));
 
@@ -151,7 +149,7 @@ void GUI::drawContents() {
     if (glfwGetTime() - render_time_ > 1.0) {
         double fps = frame_ / (glfwGetTime() - render_time_);
         render_time_ = glfwGetTime();
-        fps_label_->setCaption(std::to_string(fps).substr(0,7));
+        fps_label_->setCaption(std::to_string(fps).substr(0,5));
         frame_ = 0;
     }
 }

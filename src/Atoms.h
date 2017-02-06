@@ -6,6 +6,7 @@ typedef Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> AtomMatrix;
 
 class Atoms {
 public:
+    Atoms() {}
     Atoms(AtomMatrix coordinates) : coordinates_(coordinates), updated_(false) {}
 
     AtomMatrix coordinates() {
