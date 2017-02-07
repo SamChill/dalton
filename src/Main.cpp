@@ -7,12 +7,15 @@
 
 using namespace std;
 
-int main(void) {
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::cerr << argv[0] << ": missing filename" << std::endl;
+    }
     try {
         nanogui::init();
 
         {
-            nanogui::ref<GUI> gui = new GUI();
+            nanogui::ref<GUI> gui = new GUI(argv[1]);
             gui->drawAll();
             gui->setVisible(true);
             nanogui::mainloop();

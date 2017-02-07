@@ -18,12 +18,11 @@
 using std::string;
 using namespace nanogui;
 
-GUI::GUI() :
+GUI::GUI(std::string filename) :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
     arcball_(2.0f),
-    radius_(0.56123f),
+    radius_scale_(1.0),
     zoom_(0.0f),
-    num_atoms_(13),
     render_time_(glfwGetTime()),
     gradient_(0.5),
     frame_(0)
@@ -32,33 +31,18 @@ GUI::GUI() :
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Controls");
 
-    FloatBox<float> *radius_box = gui->addVariable("radius", radius_);
-    radius_box->setSpinnable(true);
-    radius_box->setMinValue(0.001);
-    radius_box->setValueIncrement(0.02);
+    FloatBox<float> *radius_scale_box = gui->addVariable("radius", radius_scale_);
+    radius_scale_box->setSpinnable(true);
+    radius_scale_box->setMinValue(0.001);
+    radius_scale_box->setValueIncrement(0.02);
 
     FloatBox<float> *gradient_box = gui->addVariable("gradient", gradient_);
     gradient_box->setSpinnable(true);
     gradient_box->setMinValue(0.00);
     gradient_box->setValueIncrement(0.05);
 
-    IntBox<int> *num_atoms_box = gui->addVariable("number of atoms", num_atoms_);
-    num_atoms_box->setSpinnable(true);
-    num_atoms_box->setValueIncrement(10);
-    num_atoms_box->setMinValue(1);
-
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
-
-    energy_label_ = new Label(window, "0.0");
-    gui->addWidget("energy", energy_label_);
-
-    force_label_ = new Label(window, "0.0");
-    gui->addWidget("force", force_label_);
-
-    gui->addButton("Generate", [this]() { updatePositions(); });
-
-    gui->addButton("Save", [this]() { atoms_.xyz("/home/chill/dalton.xyz"); });
 
     // Finalize widget setup.
     performLayout();
@@ -75,7 +59,15 @@ GUI::GUI() :
     );
 
     shader_.bind();
-    updatePositions();
+
+    atoms_ = Atoms::readXYZ(filename);
+    AtomMatrix coordinates = atoms_.coordinates();
+    coordinates.rowwise() -= (coordinates.colwise().sum() / ((float) atoms_.size())).eval();
+    box_size_ = (coordinates.colwise().maxCoeff() - coordinates.colwise().minCoeff()).maxCoeff();
+    box_size_ *= 1.5;
+    atoms_.setCoordinates(coordinates);
+    shader_.uploadAttrib("radius", atoms_.radii().transpose());
+    shader_.uploadAttrib("sphere_color", atoms_.colors().transpose());
 }
 
 GUI::~GUI() {
@@ -96,11 +88,6 @@ bool GUI::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifie
     }
 }
 
-void GUI::updatePositions()
-{
-    atoms_.setCoordinates(2*AtomMatrix::Random(num_atoms_, 3));
-}
-
 void GUI::drawContents() {
     shader_.bind();
 
@@ -111,7 +98,10 @@ void GUI::drawContents() {
     // Make perspective matrix.
     float aspect_ratio = float(mSize.x()) / float(mSize.y());
     float zoom = std::exp(zoom_);
-    Matrix4f projection = ortho(-10.0*zoom*aspect_ratio, 10.0*zoom*aspect_ratio, -10.0*zoom, 10.0*zoom, -10.0, 10.0);
+    Matrix4f projection = ortho(
+        -box_size_/2.0*zoom*aspect_ratio, box_size_/2.0*zoom*aspect_ratio,
+        -box_size_/2.0*zoom, box_size_/2.0*zoom,
+        -box_size_/2.0, box_size_/2.0);
     shader_.setUniform("projection", projection);
 
     // Setup camera matrix.
@@ -122,28 +112,15 @@ void GUI::drawContents() {
     shader_.setUniform("view", view);
 
     // Update uniforms.
-    shader_.setUniform("radius", radius_);
     shader_.setUniform("gradient", gradient_);
+    shader_.setUniform("radius_scale", radius_scale_);
+    shader_.setUniform("box_size", box_size_);
 
     // Draw points.
     glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_.drawArray(GL_POINTS, 0, sphere_centers.rows());
     glDisable(GL_DEPTH_TEST);
-
-
-    {
-        float alpha = 1/1000.0;
-        AtomMatrix step = alpha * atoms_.forces();
-        if (step.norm() > 0.2) {
-            step = step.normalized() * 0.2;
-        }
-        AtomMatrix new_sphere_centers = sphere_centers + step;
-        atoms_.setCoordinates(new_sphere_centers);
-    }
-
-    energy_label_->setCaption(std::to_string(atoms_.energy()).substr(0,7));
-    force_label_->setCaption(std::to_string(atoms_.forces().norm()).substr(0,7));
 
     frame_ += 1;
     if (glfwGetTime() - render_time_ > 1.0) {

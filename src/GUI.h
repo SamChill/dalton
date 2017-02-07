@@ -5,7 +5,7 @@
 
 class GUI : public nanogui::Screen {
 public:
-    GUI();
+    GUI(std::string filename);
     ~GUI();
 
     virtual void drawContents();
@@ -15,16 +15,14 @@ public:
     void updatePositions();
 
 private:
-    nanogui::GLShader shader_;
-    float radius_;
-    float zoom_;
-    int num_atoms_;
     Atoms atoms_;
-    nanogui::Arcball arcball_;
     double render_time_;
     float gradient_;
-    nanogui::Label *energy_label_;
-    nanogui::Label *force_label_;
-    nanogui::Label *fps_label_;
+    float radius_scale_;
+    float zoom_;
+    float box_size_;
     int frame_;
+    nanogui::Arcball arcball_;
+    nanogui::GLShader shader_;
+    nanogui::Label *fps_label_;
 };

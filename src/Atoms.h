@@ -1,19 +1,42 @@
+#pragma once
 #include <Eigen/Dense>
+#include <vector>
+#include "Elements.h"
 #include <iostream>
-#include <fstream>
+#include <cassert>
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> AtomMatrix;
 
 class Atoms {
 public:
     Atoms() {}
-    Atoms(AtomMatrix coordinates) : coordinates_(coordinates), updated_(false) {}
+    Atoms(std::vector<Element> elements, AtomMatrix& coordinates)
+    :elements_(elements), coordinates_(coordinates), updated_(false)
+    {
+        assert(elements.size() == coordinates.rows());
+    }
 
     AtomMatrix coordinates() {
         return coordinates_;
     }
 
-    void setCoordinates(AtomMatrix coordinates) {
+    Eigen::VectorXf radii() {
+        Eigen::VectorXf radii = Eigen::VectorXf::Zero(size());
+        for (int i=0; i<size(); i++) {
+            radii(i) = elements_[i].radius;
+        }
+        return radii;
+    }
+
+    AtomMatrix colors() {
+        AtomMatrix colors = AtomMatrix::Zero(size(), 3);
+        for (int i=0; i<size(); i++) {
+            colors.row(i) = elements_[i].color;
+        }
+        return colors;
+    }
+
+    void setCoordinates(AtomMatrix& coordinates) {
         coordinates_ = coordinates;
         updated_ = false;
     }
@@ -22,44 +45,11 @@ public:
         return coordinates_.rows();
     }
 
-    void update() {
-        using std::pow;
+    void update();
 
-        if (updated_) {
-            return;
-        }
+    void saveXYZ(std::string filename);
 
-        energy_ = 0.0;
-        forces_ = AtomMatrix::Zero(size(), 3);
-        for (size_t i=0; i < size()-1; i++) {
-            for (size_t j=i+1; j < size(); j++) {
-                Eigen::Vector3f diff = coordinates_.row(i) - coordinates_.row(j);
-
-                float r = diff.norm();
-                if (r < 0.2) {
-                    r = 0.2;
-                }
-                float a = pow(r, -6);
-                float b = 4.0 * a;
-                energy_ += b * (a - 1.0);
-                float dU = -6.0 * b / r * (2.0 * a - 1.0);
-                Eigen::Vector3f f = dU*diff/r;
-                forces_.row(i) -= f;
-                forces_.row(j) += f;
-            }
-        }
-        updated_ = true;
-    }
-
-    void xyz(std::string filename) {
-        std::ofstream file(filename);
-        using std::endl;
-        using std::to_string;
-        file << to_string(size()) << endl;
-        file << "Made by Dalton" << endl;
-        for (size_t i=0; i<size(); i++)
-            file << "C " << coordinates_.row(i) << endl;
-    }
+    static Atoms readXYZ(std::string filename);
 
     AtomMatrix forces() {
         update();
@@ -72,8 +62,8 @@ public:
     }
 
 private:
+    std::vector<Element> elements_;
     AtomMatrix coordinates_;
-    AtomMatrix velocities_;
     AtomMatrix forces_;
     double energy_;
     bool updated_;
