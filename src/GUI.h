@@ -12,8 +12,6 @@ public:
     virtual bool scrollEvent(const Eigen::Vector2i &p, const Eigen::Vector2f &rel);
     virtual bool mouseButtonEvent(const Eigen::Vector2i &p, int button, bool down, int modifiers);
 
-    void updatePositions();
-
 private:
     Atoms atoms_;
     double render_time_;

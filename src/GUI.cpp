@@ -91,8 +91,8 @@ bool GUI::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifie
 void GUI::drawContents() {
     shader_.bind();
 
+    // Get sphere centers.
     AtomMatrix sphere_centers = atoms_.coordinates();
-
     shader_.uploadAttrib("sphere_center", sphere_centers.transpose());
 
     // Make perspective matrix.
@@ -104,11 +104,10 @@ void GUI::drawContents() {
         -box_size_/2.0, box_size_/2.0);
     shader_.setUniform("projection", projection);
 
-    // Setup camera matrix.
+    // Make view matrix.
     arcball_.setSize(mSize);
     arcball_.motion(mousePos());
     Matrix4f view = arcball_.matrix();
-    //Matrix4f zoom = scale(Eigen::Vector3f(std::exp(zoom_), std::exp(zoom_), 1));
     shader_.setUniform("view", view);
 
     // Update uniforms.
@@ -118,10 +117,10 @@ void GUI::drawContents() {
 
     // Draw points.
     glEnable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_.drawArray(GL_POINTS, 0, sphere_centers.rows());
     glDisable(GL_DEPTH_TEST);
 
+    // Calculate fps.
     frame_ += 1;
     if (glfwGetTime() - render_time_ > 1.0) {
         double fps = frame_ / (glfwGetTime() - render_time_);
