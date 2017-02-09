@@ -15,10 +15,11 @@ public:
 private:
     Atoms atoms_;
     double render_time_;
-    float gradient_;
-    float radius_scale_;
-    float zoom_;
+    float ambient_occlusion_;
     float box_size_;
+    float radius_scale_;
+    float saturation_;
+    float zoom_;
     int frame_;
     nanogui::Arcball arcball_;
     nanogui::GLShader shader_;

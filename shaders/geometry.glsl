@@ -7,41 +7,51 @@ layout (triangle_strip, max_vertices=4) out;
 in VS_OUT {
     float radius;
     vec3 sphere_color;
+    float sphere_number;
 } gs_in[];
 
-out vec2 square_coordinates;
-out vec3 sphere_coordinates;
-out vec3 f_sphere_color;
+out GS_OUT {
+    float radius;
+    vec3 billboard_coordinates;
+    vec3 sphere_center;
+    vec3 sphere_color;
+    float sphere_number;
+} gs_out;
 
 uniform float radius_scale;
 uniform mat4 projection;
 
 void main() {    
-    vec4 sphere_center = gl_in[0].gl_Position;
-    sphere_coordinates = vec3(sphere_center);
 
+    // Calculate the radius.
     float r = radius_scale * gs_in[0].radius;
 
+    vec2 corners[4] = vec2[4](
+        vec2(-r, -r), vec2(r, -r), vec2(-r, r), vec2(r, r)
+    );
+
+
+    // Get the center of the sphere. This has already been rotated.
+    vec4 sphere_center = gl_in[0].gl_Position;
+
     // Generate a square centered on the sphere.
-    gl_Position = projection * (sphere_center + vec4(-r, -r, 0.0, 0.0));
-    square_coordinates = vec2(-1, -1);
-    f_sphere_color = gs_in[0].sphere_color;
-    EmitVertex();   
+    for (int i=0; i<4; i++) {
+        vec2 corner = corners[i];
 
-    gl_Position = projection * (sphere_center + vec4(r, -r, 0.0, 0.0));
-    square_coordinates = vec2(1, -1);
-    f_sphere_color = gs_in[0].sphere_color;
-    EmitVertex();
+        // Calculate the world coordinates of the billboard.
+        gs_out.billboard_coordinates = sphere_center.xyz;
+        gs_out.billboard_coordinates.xy += corner;
 
-    gl_Position = projection * (sphere_center + vec4(-r, r, 0.0, 0.0));
-    square_coordinates = vec2(-1, 1);
-    f_sphere_color = gs_in[0].sphere_color;
-    EmitVertex();
+        // Set some data to forward to the fragment shader.
+        gs_out.radius = r;
+        gs_out.sphere_color  = gs_in[0].sphere_color;
+        gs_out.sphere_number = gs_in[0].sphere_number;
+        gs_out.sphere_center = vec3(sphere_center);
 
-    gl_Position = projection * (sphere_center + vec4(r, r, 0.0, 0.0));
-    square_coordinates = vec2(1, 1);
-    f_sphere_color = gs_in[0].sphere_color;
-    EmitVertex();
+        // Set the position of the vertex and apply the projection to screen space.
+        gl_Position = projection * (sphere_center + vec4(corner, 0.0, 0.0));
+        EmitVertex();   
+    }
 
     EndPrimitive();
 }  

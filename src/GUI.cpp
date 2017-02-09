@@ -24,7 +24,8 @@ GUI::GUI(std::string filename) :
     radius_scale_(1.0),
     zoom_(0.0f),
     render_time_(glfwGetTime()),
-    gradient_(0.5),
+    ambient_occlusion_(1.0),
+    saturation_(1.0),
     frame_(0)
 {
     // Setup Widgets.
@@ -36,10 +37,16 @@ GUI::GUI(std::string filename) :
     radius_scale_box->setMinValue(0.001);
     radius_scale_box->setValueIncrement(0.02);
 
-    FloatBox<float> *gradient_box = gui->addVariable("gradient", gradient_);
-    gradient_box->setSpinnable(true);
-    gradient_box->setMinValue(0.00);
-    gradient_box->setValueIncrement(0.05);
+    FloatBox<float> *ambient_occlusion_box = gui->addVariable("ambient occlusion", ambient_occlusion_);
+    ambient_occlusion_box->setSpinnable(true);
+    ambient_occlusion_box->setMinValue(0.00);
+    ambient_occlusion_box->setValueIncrement(0.05);
+
+    FloatBox<float> *saturation_box = gui->addVariable("saturation", saturation_);
+    saturation_box->setSpinnable(true);
+    saturation_box->setMinValue(0.00);
+    saturation_box->setMaxValue(1.00);
+    saturation_box->setValueIncrement(0.05);
 
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
@@ -95,6 +102,12 @@ void GUI::drawContents() {
     AtomMatrix sphere_centers = atoms_.coordinates();
     shader_.uploadAttrib("sphere_center", sphere_centers.transpose());
 
+    Eigen::VectorXf sphere_numbers = Eigen::VectorXf::Zero(atoms_.size());
+    for (int i=0; i<atoms_.size(); i++) {
+        sphere_numbers(i) = float(i);
+    }
+    shader_.uploadAttrib("sphere_number", sphere_numbers.transpose());
+
     // Make perspective matrix.
     float aspect_ratio = float(mSize.x()) / float(mSize.y());
     float zoom = std::exp(zoom_);
@@ -111,9 +124,55 @@ void GUI::drawContents() {
     shader_.setUniform("view", view);
 
     // Update uniforms.
-    shader_.setUniform("gradient", gradient_);
+    shader_.setUniform("num_atoms", (int)atoms_.size());
+    shader_.setUniform("ambient_occlusion", ambient_occlusion_);
     shader_.setUniform("radius_scale", radius_scale_);
     shader_.setUniform("box_size", box_size_);
+    shader_.setUniform("saturation", saturation_);
+
+    // Texture.
+    GLuint sphere_texture;
+    glGenTextures(1, &sphere_texture);
+    glBindTexture(GL_TEXTURE_1D, sphere_texture);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage1D(
+        GL_TEXTURE_1D,
+        0,
+        GL_RGB32F,
+        sphere_centers.rows(),
+        0,
+        GL_RGB,
+        GL_FLOAT,
+        sphere_centers.transpose().data()
+    );
+
+    GLuint radius_texture;
+    glGenTextures(1, &radius_texture);
+    glBindTexture(GL_TEXTURE_1D, radius_texture);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage1D(
+        GL_TEXTURE_1D,
+        0,
+        GL_R32F,
+        atoms_.radii().rows(),
+        0,
+        GL_RED,
+        GL_FLOAT,
+        atoms_.radii().data()
+    );
+
+    GLint sphere_texture_loc = shader_.uniform("sphere_texture");
+    GLint radius_texture_loc = shader_.uniform("radius_texture");
+
+    glUniform1i(sphere_texture_loc, 0);
+    glUniform1i(radius_texture_loc, 1);
+
+    glActiveTexture(GL_TEXTURE0 + 0);
+    glBindTexture(GL_TEXTURE_1D, sphere_texture);
+    glActiveTexture(GL_TEXTURE0 + 1);
+    glBindTexture(GL_TEXTURE_1D, radius_texture);
 
     // Draw points.
     glEnable(GL_DEPTH_TEST);
