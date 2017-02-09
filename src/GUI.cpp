@@ -35,18 +35,18 @@ GUI::GUI(std::string filename) :
     FloatBox<float> *radius_scale_box = gui->addVariable("radius", radius_scale_);
     radius_scale_box->setSpinnable(true);
     radius_scale_box->setMinValue(0.001);
-    radius_scale_box->setValueIncrement(0.02);
+    radius_scale_box->setValueIncrement(0.1);
 
     FloatBox<float> *ambient_occlusion_box = gui->addVariable("ambient occlusion", ambient_occlusion_);
     ambient_occlusion_box->setSpinnable(true);
     ambient_occlusion_box->setMinValue(0.00);
-    ambient_occlusion_box->setValueIncrement(0.05);
+    ambient_occlusion_box->setValueIncrement(0.1);
 
     FloatBox<float> *saturation_box = gui->addVariable("saturation", saturation_);
     saturation_box->setSpinnable(true);
     saturation_box->setMinValue(0.00);
     saturation_box->setMaxValue(1.00);
-    saturation_box->setValueIncrement(0.05);
+    saturation_box->setValueIncrement(0.1);
 
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
