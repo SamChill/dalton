@@ -20,11 +20,12 @@ out GS_OUT {
 
 uniform float radius_scale;
 uniform mat4 projection;
+uniform float outline;
 
 void main() {    
 
     // Calculate the radius.
-    float r = radius_scale * gs_in[0].radius;
+    float r = radius_scale * (gs_in[0].radius + outline);
 
     vec2 corners[4] = vec2[4](
         vec2(-r, -r), vec2(r, -r), vec2(-r, r), vec2(r, r)
@@ -43,7 +44,7 @@ void main() {
         gs_out.billboard_coordinates.xy += corner;
 
         // Set some data to forward to the fragment shader.
-        gs_out.radius = r;
+        gs_out.radius = radius_scale * gs_in[0].radius;
         gs_out.sphere_color  = gs_in[0].sphere_color;
         gs_out.sphere_number = gs_in[0].sphere_number;
         gs_out.sphere_center = vec3(sphere_center);

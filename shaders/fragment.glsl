@@ -15,36 +15,42 @@ uniform float ambient_occlusion;
 uniform float radius_scale;
 uniform float saturation;
 uniform int num_atoms;
-uniform int outline;
+uniform float outline;
 uniform mat4 view;
 uniform sampler1D sphere_texture;
 uniform sampler1D radius_texture;
 uniform sampler1D neighbor_texture;
 uniform int neighbor_count;
+uniform float eta;
 uniform float decay;
 
 void draw_imposter(vec3 local_coordinates) {
     float r = length(local_coordinates.xy);
 
-    if (r > fs_in.radius) {
+    if (r > fs_in.radius + outline*outline) {
         discard;
     }
 
-    if (outline == 1 && r > 0.97*fs_in.radius) {
-        color = vec4(vec3(0.0), 1.0);
-        return;
-    }
-
     color.a = 1.0;
+
     color.rgb = mix(fs_in.sphere_color, vec3(1.0, 1.0, 1.0), 1.0-saturation);
+
+    if (r > fs_in.radius) {
+        color.rgb = vec3(0.0);
+    }
 }
 
 void determine_depth(float z) {
-    gl_FragDepth = 1.0 - (z + box_size/2.0) / box_size;
+    gl_FragDepth = 1.0 - (z + (box_size+10)/2.0) / (box_size+10);
 }
 
 float sphere_z(float x, float y, float r) {
-    return sqrt(r*r - x*x - y*y);
+    float z_sq = r*r - x*x - y*y;
+    if (z_sq > 0.0) {
+        return sqrt(z_sq);
+    }else{
+        return -eta*(length(vec2(x,y))-r);
+    }
 }
 
 vec3 sphere_lookup(int i) {
@@ -92,11 +98,11 @@ void main()
     vec3 global_coordinates = fs_in.billboard_coordinates;
     global_coordinates.z += local_coordinates.z;
 
-    // Draw the imposters.
-    draw_imposter(local_coordinates);
-
     // Determine the gl_FragDepth.
     determine_depth(global_coordinates.z);
+
+    // Draw the imposters.
+    draw_imposter(local_coordinates);
 
     // Lighting.
     if (ambient_occlusion > 0.01) {

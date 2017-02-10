@@ -28,8 +28,11 @@ GUI::GUI(std::string filename) :
     zoom_(0.0f),
     ambient_occlusion_(1.0),
     saturation_(0.6),
+    outline_(0.3),
+    eta_(2.0),
     decay_(1.5)
 {
+    setBackground(Color(1.0f, 1.0f));
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Controls");
@@ -45,8 +48,16 @@ GUI::GUI(std::string filename) :
     saturation_box->setMaxValue(1.00);
     saturation_box->setValueIncrement(0.1);
 
-    CheckBox *cb = new CheckBox(window, "", [this](bool state) { outline_ = (int)state; });
-    gui->addWidget("outline", cb);
+    FloatBox<float> *outline_box = gui->addVariable("outline", outline_);
+    outline_box->setSpinnable(true);
+    outline_box->setMinValue(0.00);
+    outline_box->setMaxValue(1.00);
+    outline_box->setValueIncrement(0.05);
+
+    FloatBox<float> *eta_box = gui->addVariable("eta", eta_);
+    eta_box->setSpinnable(true);
+    eta_box->setMinValue(0.00);
+    eta_box->setValueIncrement(0.2);
 
     //IntBox<int> *neighbor_count_box = gui->addVariable("neighbor count", neighbor_count_);
     //neighbor_count_box->setSpinnable(true);
@@ -214,6 +225,7 @@ void GUI::drawContents() {
 
     // Make view matrix.
     arcball_.setSize(mSize);
+
     arcball_.motion(mousePos());
     Matrix4f view = arcball_.matrix();
     shader_.setUniform("view", view);
@@ -226,6 +238,7 @@ void GUI::drawContents() {
     shader_.setUniform("saturation", saturation_);
     shader_.setUniform("outline", outline_);
     shader_.setUniform("decay", decay_);
+    shader_.setUniform("eta", std::exp(eta_));
 
     // Draw points.
     glEnable(GL_DEPTH_TEST);
