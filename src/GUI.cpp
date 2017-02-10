@@ -48,6 +48,11 @@ GUI::GUI(std::string filename) :
     CheckBox *cb = new CheckBox(window, "", [this](bool state) { outline_ = (int)state; });
     gui->addWidget("outline", cb);
 
+    //IntBox<int> *neighbor_count_box = gui->addVariable("neighbor count", neighbor_count_);
+    //neighbor_count_box->setSpinnable(true);
+    //neighbor_count_box->setMinValue(8);
+    //neighbor_count_box->setMaxValue(40);
+
     FloatBox<float> *ambient_occlusion_box = gui->addVariable("ambient occlusion", ambient_occlusion_);
     ambient_occlusion_box->setSpinnable(true);
     ambient_occlusion_box->setMinValue(0.00);
@@ -124,10 +129,21 @@ GUI::GUI(std::string filename) :
         atoms_.radii().data()
     );
 
-    int neighbor_count = std::min((int)atoms_.size()-1, 40);
+    int max_texture_size;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
+    neighbor_count_ = std::min(max_texture_size / atoms_.size(), atoms_.size()-1);
+    neighbor_count_ = std::min(40, neighbor_count_);
+    std::cout << "neighbor count: " << neighbor_count_ << std::endl;
 
-    NeighborList neighbor_list = atoms_.neighborList(neighbor_count);
-    shader_.setUniform("neighbor_count", neighbor_count);
+    NeighborList neighbor_list;
+    if (neighbor_count_ < 8 && atoms_.size() > 9) {
+        neighbor_count_ = 0;
+        std::cerr << "warning: max texture size too small: ao disabled" << std::endl;
+    }else{
+        neighbor_list = atoms_.neighborList(neighbor_count_);
+    }
+
+    shader_.setUniform("neighbor_count", neighbor_count_);
     GLuint neighbor_texture;
     glGenTextures(1, &neighbor_texture);
     glBindTexture(GL_TEXTURE_1D, neighbor_texture);

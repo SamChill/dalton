@@ -22,6 +22,7 @@ private:
     float saturation_;
     float zoom_;
     int outline_;
+    int neighbor_count_;
     nanogui::Arcball arcball_;
     nanogui::GLShader shader_;
     nanogui::Label *fps_label_;

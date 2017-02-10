@@ -99,6 +99,8 @@ void main()
     determine_depth(global_coordinates.z);
 
     // Lighting.
-    vec3 normal = normalize(local_coordinates);
-    lighting(global_coordinates, normal);
+    if (ambient_occlusion > 0.01) {
+        vec3 normal = normalize(local_coordinates);
+        lighting(global_coordinates, normal);
+    }
 }  
