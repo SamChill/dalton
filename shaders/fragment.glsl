@@ -70,7 +70,6 @@ int neighbor(int i) {
 void lighting(vec3 p, vec3 normal) {
     for (int k=0; k<neighbor_count; k++) {
         int i = neighbor(k);
-        if (i == -1) continue;
         vec3 q = sphere_lookup(i);
         float cos_alpha = dot(normalize(q-p), normal);
         if (cos_alpha < 0.0) {
