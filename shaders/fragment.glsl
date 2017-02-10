@@ -77,7 +77,8 @@ void lighting(vec3 p, vec3 normal) {
         }
         float r = radius_lookup(i);
         float d = distance(q, p);
-        color.rgb *= 1.0 - ambient_occlusion*cos_alpha*(r/d)*(r/d);
+        //color.rgb *= (1.0 - ambient_occlusion*cos_alpha*(r/d)*(r/d));
+        color.rgb *= 1.0 - 0.5*ambient_occlusion*cos_alpha*sqrt(1.0-pow((r/d), 2.0));
     }
 }
 
