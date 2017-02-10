@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
             nanogui::ref<GUI> gui = new GUI(argv[1]);
             gui->drawAll();
             gui->setVisible(true);
-            nanogui::mainloop();
+            nanogui::mainloop(1);
         }
 
         nanogui::shutdown();

@@ -22,14 +22,13 @@ using namespace nanogui;
 
 GUI::GUI(std::string filename) :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
+    performance_monitor_(0.25),
     arcball_(2.0f),
     radius_scale_(1.0),
     zoom_(0.0f),
-    render_time_(glfwGetTime()),
     ambient_occlusion_(1.0),
     saturation_(0.6),
-    decay_(1.5),
-    frame_(0)
+    decay_(1.5)
 {
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
@@ -40,16 +39,19 @@ GUI::GUI(std::string filename) :
     radius_scale_box->setMinValue(0.001);
     radius_scale_box->setValueIncrement(0.1);
 
-    FloatBox<float> *ambient_occlusion_box = gui->addVariable("ambient occlusion", ambient_occlusion_);
-    ambient_occlusion_box->setSpinnable(true);
-    ambient_occlusion_box->setMinValue(0.00);
-    ambient_occlusion_box->setValueIncrement(0.1);
-
     FloatBox<float> *saturation_box = gui->addVariable("saturation", saturation_);
     saturation_box->setSpinnable(true);
     saturation_box->setMinValue(0.00);
     saturation_box->setMaxValue(1.00);
     saturation_box->setValueIncrement(0.1);
+
+    CheckBox *cb = new CheckBox(window, "", [this](bool state) { outline_ = (int)state; });
+    gui->addWidget("outline", cb);
+
+    FloatBox<float> *ambient_occlusion_box = gui->addVariable("ambient occlusion", ambient_occlusion_);
+    ambient_occlusion_box->setSpinnable(true);
+    ambient_occlusion_box->setMinValue(0.00);
+    ambient_occlusion_box->setValueIncrement(0.1);
 
     FloatBox<float> *decay_box = gui->addVariable("decay", decay_);
     decay_box->setSpinnable(true);
@@ -60,8 +62,8 @@ GUI::GUI(std::string filename) :
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
 
-    CheckBox *cb = new CheckBox(window, "outline", [this](bool state) { outline_ = (int)state; });
-    gui->addWidget("", cb);
+    render_time_label_ = new Label(window, "0.0");
+    gui->addWidget("render time (ms)", render_time_label_);
 
     // Finalize widget setup.
     performLayout();
@@ -122,7 +124,8 @@ GUI::GUI(std::string filename) :
         atoms_.radii().data()
     );
 
-    int neighbor_count = std::min((int)atoms_.size(), 22);
+    int neighbor_count = std::min((int)atoms_.size()-1, 40);
+
     NeighborList neighbor_list = atoms_.neighborList(neighbor_count);
     shader_.setUniform("neighbor_count", neighbor_count);
     GLuint neighbor_texture;
@@ -214,11 +217,8 @@ void GUI::drawContents() {
     glDisable(GL_DEPTH_TEST);
 
     // Calculate fps.
-    frame_ += 1;
-    if (glfwGetTime() - render_time_ > 1.0) {
-        double fps = frame_ / (glfwGetTime() - render_time_);
-        render_time_ = glfwGetTime();
-        fps_label_->setCaption(std::to_string(fps).substr(0,5));
-        frame_ = 0;
-    }
+    performance_monitor_.update();
+    fps_label_->setCaption(std::to_string(performance_monitor_.fps()).substr(0,5));
+    render_time_label_->setCaption(std::to_string(performance_monitor_.renderTime()).substr(0,5));
+
 }

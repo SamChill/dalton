@@ -2,6 +2,7 @@
 #include <nanogui/glutil.h>
 #include <nanogui/label.h>
 #include "Atoms.h"
+#include "Utils.h"
 
 class GUI : public nanogui::Screen {
 public:
@@ -14,16 +15,16 @@ public:
 
 private:
     Atoms atoms_;
-    double render_time_;
-    float decay_;
     float ambient_occlusion_;
     float box_size_;
+    float decay_;
     float radius_scale_;
     float saturation_;
     float zoom_;
     int outline_;
-    int frame_;
     nanogui::Arcball arcball_;
     nanogui::GLShader shader_;
     nanogui::Label *fps_label_;
+    nanogui::Label *render_time_label_;
+    PerformanceMonitor performance_monitor_;
 };
