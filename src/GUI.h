@@ -20,6 +20,7 @@ private:
     float radius_scale_;
     float saturation_;
     float zoom_;
+    int outline_;
     int frame_;
     nanogui::Arcball arcball_;
     nanogui::GLShader shader_;

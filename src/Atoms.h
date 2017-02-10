@@ -6,6 +6,7 @@
 #include <cassert>
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> AtomMatrix;
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NeighborList;
 
 class Atoms {
 public:
@@ -26,6 +27,33 @@ public:
             radii(i) = elements_[i].radius;
         }
         return radii;
+    }
+
+    NeighborList neighborList(int neighbor_count) {
+        Eigen::MatrixXf distance_matrix = Eigen::MatrixXf::Zero(size(), size());
+        for (int i=0; i<size(); i++) {
+            for (int j=i+1; j<size(); j++) {
+                distance_matrix(i,j) = (coordinates_.row(i) - coordinates_.row(j)).squaredNorm();
+                distance_matrix(j,i) = distance_matrix(i,j);
+            }
+        }
+
+        NeighborList neighbor_list = NeighborList::Constant(size(), neighbor_count, -1);
+        for (int i=0;i<size();i++) {
+            Eigen::VectorXf neighor_distances = Eigen::VectorXf::Constant(neighbor_count, 99999.0);
+            for (int j=0;j<size();j++) {
+                if (i == j) continue;
+                float d = distance_matrix(i,j);
+                Eigen::VectorXf::Index max_idx;
+                neighor_distances.maxCoeff(&max_idx);
+                if (d < neighor_distances(max_idx)) {
+                    neighbor_list(i,max_idx) = j;
+                    neighor_distances(max_idx) = d;
+                }
+            }
+        }
+
+        return neighbor_list;
     }
 
     AtomMatrix colors() {
@@ -65,6 +93,7 @@ private:
     std::vector<Element> elements_;
     AtomMatrix coordinates_;
     AtomMatrix forces_;
+    NeighborList neighbor_list_;
     double energy_;
     bool updated_;
 };

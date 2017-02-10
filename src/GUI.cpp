@@ -1,4 +1,5 @@
 #include "GUI.h"
+#include <algorithm>
 #include <unistd.h>
 #include <nanogui/screen.h>
 #include <nanogui/opengl.h>
@@ -17,6 +18,7 @@
 
 using std::string;
 using namespace nanogui;
+
 
 GUI::GUI(std::string filename) :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
@@ -51,6 +53,9 @@ GUI::GUI(std::string filename) :
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
 
+    CheckBox *cb = new CheckBox(window, "outline", [this](bool state) { outline_ = (int)state; });
+    gui->addWidget("", cb);
+
     // Finalize widget setup.
     performLayout();
 
@@ -75,6 +80,70 @@ GUI::GUI(std::string filename) :
     atoms_.setCoordinates(coordinates);
     shader_.uploadAttrib("radius", atoms_.radii().transpose());
     shader_.uploadAttrib("sphere_color", atoms_.colors().transpose());
+
+    // Texture.
+    AtomMatrix sphere_centers = atoms_.coordinates();
+    GLuint sphere_texture;
+    glGenTextures(1, &sphere_texture);
+    glBindTexture(GL_TEXTURE_1D, sphere_texture);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage1D(
+        GL_TEXTURE_1D,
+        0,
+        GL_RGB32F,
+        sphere_centers.rows(),
+        0,
+        GL_RGB,
+        GL_FLOAT,
+        sphere_centers.transpose().data()
+    );
+
+    GLuint radius_texture;
+    glGenTextures(1, &radius_texture);
+    glBindTexture(GL_TEXTURE_1D, radius_texture);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage1D(
+        GL_TEXTURE_1D,
+        0,
+        GL_R32F,
+        atoms_.radii().rows(),
+        0,
+        GL_RED,
+        GL_FLOAT,
+        atoms_.radii().data()
+    );
+
+    int neighbor_count = std::min((int)atoms_.size(), 22);
+    NeighborList neighbor_list = atoms_.neighborList(neighbor_count);
+    shader_.setUniform("neighbor_count", neighbor_count);
+    GLuint neighbor_texture;
+    glGenTextures(1, &neighbor_texture);
+    glBindTexture(GL_TEXTURE_1D, neighbor_texture);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage1D(
+        GL_TEXTURE_1D,
+        0,
+        GL_R32F,
+        neighbor_list.cols() * neighbor_list.rows(),
+        0,
+        GL_RED,
+        GL_FLOAT,
+        neighbor_list.transpose().data()
+    );
+
+    shader_.setUniform("sphere_texture", 0);
+    shader_.setUniform("radius_texture", 1);
+    shader_.setUniform("neighbor_texture", 2);
+
+    glActiveTexture(GL_TEXTURE0 + 0);
+    glBindTexture(GL_TEXTURE_1D, sphere_texture);
+    glActiveTexture(GL_TEXTURE0 + 1);
+    glBindTexture(GL_TEXTURE_1D, radius_texture);
+    glActiveTexture(GL_TEXTURE0 + 2);
+    glBindTexture(GL_TEXTURE_1D, neighbor_texture);
 }
 
 GUI::~GUI() {
@@ -129,50 +198,7 @@ void GUI::drawContents() {
     shader_.setUniform("radius_scale", radius_scale_);
     shader_.setUniform("box_size", box_size_);
     shader_.setUniform("saturation", saturation_);
-
-    // Texture.
-    GLuint sphere_texture;
-    glGenTextures(1, &sphere_texture);
-    glBindTexture(GL_TEXTURE_1D, sphere_texture);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage1D(
-        GL_TEXTURE_1D,
-        0,
-        GL_RGB32F,
-        sphere_centers.rows(),
-        0,
-        GL_RGB,
-        GL_FLOAT,
-        sphere_centers.transpose().data()
-    );
-
-    GLuint radius_texture;
-    glGenTextures(1, &radius_texture);
-    glBindTexture(GL_TEXTURE_1D, radius_texture);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage1D(
-        GL_TEXTURE_1D,
-        0,
-        GL_R32F,
-        atoms_.radii().rows(),
-        0,
-        GL_RED,
-        GL_FLOAT,
-        atoms_.radii().data()
-    );
-
-    GLint sphere_texture_loc = shader_.uniform("sphere_texture");
-    GLint radius_texture_loc = shader_.uniform("radius_texture");
-
-    glUniform1i(sphere_texture_loc, 0);
-    glUniform1i(radius_texture_loc, 1);
-
-    glActiveTexture(GL_TEXTURE0 + 0);
-    glBindTexture(GL_TEXTURE_1D, sphere_texture);
-    glActiveTexture(GL_TEXTURE0 + 1);
-    glBindTexture(GL_TEXTURE_1D, radius_texture);
+    shader_.setUniform("outline", outline_);
 
     // Draw points.
     glEnable(GL_DEPTH_TEST);

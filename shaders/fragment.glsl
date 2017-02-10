@@ -15,18 +15,27 @@ uniform float ambient_occlusion;
 uniform float radius_scale;
 uniform float saturation;
 uniform int num_atoms;
+uniform int outline;
 uniform mat4 view;
 uniform sampler1D sphere_texture;
 uniform sampler1D radius_texture;
+uniform sampler1D neighbor_texture;
+uniform int neighbor_count;
 
 void draw_imposter(vec3 local_coordinates) {
     float r = length(local_coordinates.xy);
+
     if (r > fs_in.radius) {
         discard;
     }
 
+    if (outline == 1 && r > 0.97*fs_in.radius) {
+        color = vec4(vec3(0.0), 1.0);
+        return;
+    }
+
     color.a = 1.0;
-    color.rgb = mix(fs_in.sphere_color, vec3(1,1,1), 1-saturation);
+    color.rgb = mix(fs_in.sphere_color, vec3(1.0, 1.0, 1.0), 1.0-saturation);
 }
 
 void determine_depth(float z) {
@@ -48,12 +57,19 @@ float radius_lookup(int i) {
     return radius_scale * texture(radius_texture, (float(i)+h)/(float(num_atoms))).r;
 }
 
+int neighbor(int i) {
+    float texel_count = float(neighbor_count * num_atoms);
+    float texel_width = 1.0/texel_count;
+    float shift = texel_width / 2.0;
+    float coord = (fs_in.sphere_number * neighbor_count) + float(i) + shift;
+    coord /= texel_count;
+    return int(texture(neighbor_texture, coord).r);
+}
+
 void lighting(vec3 p, vec3 normal) {
-    float bl = 0.0;
-    for (int i=0; i<num_atoms; i++) {
-        if (i == int(fs_in.sphere_number)) {
-            continue;
-        }
+    for (int k=0; k<neighbor_count; k++) {
+        int i = neighbor(k);
+        if (i == -1) continue;
         vec3 q = sphere_lookup(i);
         float cos_alpha = dot(normalize(q-p), normal);
         if (cos_alpha < 0.0) {
