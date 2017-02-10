@@ -26,45 +26,61 @@ GUI::GUI(std::string filename) :
     arcball_(2.0f),
     radius_scale_(1.0),
     zoom_(0.0f),
-    ambient_occlusion_(1.0),
     saturation_(0.6),
-    outline_(0.3),
-    eta_(2.0),
+    outline_(0.0),
+    eta_(0.0),
+    ambient_occlusion_(1.0),
     decay_(1.5)
 {
-    setBackground(Color(1.0f, 1.0f));
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
-    ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Controls");
+    ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "");
 
+    gui->addGroup("Geometry");
     FloatBox<float> *radius_scale_box = gui->addVariable("radius", radius_scale_);
     radius_scale_box->setSpinnable(true);
     radius_scale_box->setMinValue(0.001);
     radius_scale_box->setValueIncrement(0.1);
 
+    gui->addGroup("Presets");
+    ComboBox *presets_box = new ComboBox(
+        window,
+        {"Custom", "2D", "Cell Shading", "Ambient Occlusion (AO)", "AO + Outlines", "B&W"}
+    );
+    presets_box->setFontSize(16);
+    gui->addWidget("", presets_box);
+
+    gui->addGroup("Colors");
     FloatBox<float> *saturation_box = gui->addVariable("saturation", saturation_);
     saturation_box->setSpinnable(true);
     saturation_box->setMinValue(0.00);
     saturation_box->setMaxValue(1.00);
     saturation_box->setValueIncrement(0.1);
 
-    FloatBox<float> *outline_box = gui->addVariable("outline", outline_);
+    Color default_bg = Color(0.841803f, 1.0f);
+    setBackground(default_bg);
+    ColorPicker *bg_color_picker = new ColorPicker(window, default_bg);
+    bg_color_picker->setCallback(
+        [this](Color c) {
+            setBackground(c);
+        }
+    );
+    gui->addWidget("background", bg_color_picker);
+
+    gui->addGroup("Outlines");
+    FloatBox<float> *outline_box = gui->addVariable("thickness", outline_);
     outline_box->setSpinnable(true);
     outline_box->setMinValue(0.00);
     outline_box->setMaxValue(1.00);
     outline_box->setValueIncrement(0.05);
 
-    FloatBox<float> *eta_box = gui->addVariable("eta", eta_);
+    FloatBox<float> *eta_box = gui->addVariable("depth hinting", eta_);
     eta_box->setSpinnable(true);
     eta_box->setMinValue(0.00);
     eta_box->setValueIncrement(0.2);
 
-    //IntBox<int> *neighbor_count_box = gui->addVariable("neighbor count", neighbor_count_);
-    //neighbor_count_box->setSpinnable(true);
-    //neighbor_count_box->setMinValue(8);
-    //neighbor_count_box->setMaxValue(40);
-
-    FloatBox<float> *ambient_occlusion_box = gui->addVariable("ambient occlusion", ambient_occlusion_);
+    gui->addGroup("Ambient Occlusion");
+    FloatBox<float> *ambient_occlusion_box = gui->addVariable("strength", ambient_occlusion_);
     ambient_occlusion_box->setSpinnable(true);
     ambient_occlusion_box->setMinValue(0.00);
     ambient_occlusion_box->setValueIncrement(0.1);
@@ -75,11 +91,68 @@ GUI::GUI(std::string filename) :
     decay_box->setMaxValue(5.00);
     decay_box->setValueIncrement(0.1);
 
+    gui->addGroup("Performance");
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
 
     render_time_label_ = new Label(window, "0.0");
     gui->addWidget("render time (ms)", render_time_label_);
+
+    presets_box->setCallback(
+        [this,saturation_box,outline_box,eta_box,ambient_occlusion_box,decay_box](int i) {
+            // 2D
+            switch (i) {
+                case 0: //Custom;
+                    break;
+                case 1: //2D
+                    saturation_ = 1.0;
+                    outline_ = 0.25;
+                    eta_ = 1.8;
+                    ambient_occlusion_ = 0.0;
+                    decay_ = 2.0;
+                    break;
+                case 2: //Cell shading
+                    saturation_ = 0.4;
+                    outline_ = 0.25;
+                    eta_ = 2.6;
+                    ambient_occlusion_ = 0.2;
+                    decay_ = 0.5;
+                    break;
+                case 3: // AO
+                    saturation_ = 0.6;
+                    outline_ = 0.0;
+                    eta_ = 0.0;
+                    ambient_occlusion_ = 1.0;
+                    decay_ = 1.5;
+                    break;
+                case 4: // AO + depth
+                    saturation_ = 0.6;
+                    outline_ = 0.3;
+                    eta_ = 3.5;
+                    ambient_occlusion_ = 1.0;
+                    decay_ = 1.5;
+                    break;
+                case 5: // B&W
+                    saturation_ = 0.0;
+                    outline_ = 0.3;
+                    eta_ = 4.3;
+                    ambient_occlusion_ = 1.1;
+                    decay_ = 1.7;
+                    break;
+            }
+            saturation_box->setValue(saturation_);
+            outline_box->setValue(outline_);
+            eta_box->setValue(eta_);
+            ambient_occlusion_box->setValue(ambient_occlusion_);
+            decay_box->setValue(decay_);
+
+            saturation_box->setEnabled(i==0);
+            outline_box->setEnabled(i==0);
+            eta_box->setEnabled(i==0);
+            ambient_occlusion_box->setEnabled(i==0);
+            decay_box->setEnabled(i==0);
+    });
+    presets_box->setSelectedIndex(3);
 
     // Finalize widget setup.
     performLayout();
@@ -144,7 +217,6 @@ GUI::GUI(std::string filename) :
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
     neighbor_count_ = std::min(max_texture_size / atoms_.size(), atoms_.size()-1);
     neighbor_count_ = std::min(40, neighbor_count_);
-    std::cout << "neighbor count: " << neighbor_count_ << std::endl;
 
     NeighborList neighbor_list;
     if (neighbor_count_ < 8 && atoms_.size() > 9) {
