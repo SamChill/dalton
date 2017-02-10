@@ -26,8 +26,8 @@ GUI::GUI(std::string filename) :
     radius_scale_(1.0),
     zoom_(0.0f),
     render_time_(glfwGetTime()),
-    ambient_occlusion_(1.0),
-    saturation_(1.0),
+    ambient_occlusion_(0.7),
+    saturation_(0.6),
     frame_(0)
 {
     // Setup Widgets.
