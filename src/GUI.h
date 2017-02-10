@@ -15,6 +15,7 @@ public:
 private:
     Atoms atoms_;
     double render_time_;
+    float decay_;
     float ambient_occlusion_;
     float box_size_;
     float radius_scale_;

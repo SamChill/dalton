@@ -21,6 +21,7 @@ uniform sampler1D sphere_texture;
 uniform sampler1D radius_texture;
 uniform sampler1D neighbor_texture;
 uniform int neighbor_count;
+uniform float decay;
 
 void draw_imposter(vec3 local_coordinates) {
     float r = length(local_coordinates.xy);
@@ -77,8 +78,7 @@ void lighting(vec3 p, vec3 normal) {
         }
         float r = radius_lookup(i);
         float d = distance(q, p);
-        //color.rgb *= (1.0 - ambient_occlusion*cos_alpha*(r/d)*(r/d));
-        color.rgb *= 1.0 - 0.5*ambient_occlusion*cos_alpha*sqrt(1.0-pow((r/d), 2.0));
+        color.rgb *= 1.0 - ambient_occlusion*cos_alpha*pow(r/d, decay);
     }
 }
 

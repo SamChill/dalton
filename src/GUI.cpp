@@ -26,8 +26,9 @@ GUI::GUI(std::string filename) :
     radius_scale_(1.0),
     zoom_(0.0f),
     render_time_(glfwGetTime()),
-    ambient_occlusion_(0.7),
+    ambient_occlusion_(1.0),
     saturation_(0.6),
+    decay_(1.5),
     frame_(0)
 {
     // Setup Widgets.
@@ -49,6 +50,12 @@ GUI::GUI(std::string filename) :
     saturation_box->setMinValue(0.00);
     saturation_box->setMaxValue(1.00);
     saturation_box->setValueIncrement(0.1);
+
+    FloatBox<float> *decay_box = gui->addVariable("decay", decay_);
+    decay_box->setSpinnable(true);
+    decay_box->setMinValue(0.1);
+    decay_box->setMaxValue(5.00);
+    decay_box->setValueIncrement(0.1);
 
     fps_label_ = new Label(window, "0.0");
     gui->addWidget("fps", fps_label_);
@@ -199,6 +206,7 @@ void GUI::drawContents() {
     shader_.setUniform("box_size", box_size_);
     shader_.setUniform("saturation", saturation_);
     shader_.setUniform("outline", outline_);
+    shader_.setUniform("decay", decay_);
 
     // Draw points.
     glEnable(GL_DEPTH_TEST);
