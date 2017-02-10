@@ -10,6 +10,7 @@ using namespace std;
 int main(int argc, char** argv) {
     if (argc != 2) {
         std::cerr << argv[0] << ": missing filename" << std::endl;
+        return 1;
     }
     try {
         nanogui::init();
