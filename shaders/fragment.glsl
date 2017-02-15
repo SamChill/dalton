@@ -5,24 +5,24 @@ in GS_OUT {
     vec3 billboard_coordinates;
     vec3 sphere_center;
     vec3 sphere_color;
-    float sphere_number;
+    flat int sphere_number;
 } fs_in;
 
 out vec4 color;
 
-uniform float box_size;
 uniform float ambient_occlusion;
+uniform float box_size;
+uniform float decay;
+uniform float eta;
+uniform float outline;
 uniform float radius_scale;
 uniform float saturation;
-uniform int num_atoms;
-uniform float outline;
+uniform int neighbor_count;
+uniform int max_neighbor_count;
 uniform mat4 view;
 uniform sampler1D sphere_texture;
 uniform sampler1D radius_texture;
 uniform sampler1D neighbor_texture;
-uniform int neighbor_count;
-uniform float eta;
-uniform float decay;
 
 void draw_imposter(vec3 local_coordinates) {
     float r = length(local_coordinates.xy);
@@ -32,7 +32,6 @@ void draw_imposter(vec3 local_coordinates) {
     }
 
     color.a = 1.0;
-
     color.rgb = mix(fs_in.sphere_color, vec3(1.0, 1.0, 1.0), 1.0-saturation);
 
     if (r > fs_in.radius) {
@@ -44,33 +43,27 @@ void determine_depth(float z) {
     gl_FragDepth = 1.0 - (z + (box_size+10)/2.0) / (box_size+10);
 }
 
-float sphere_z(float x, float y, float r) {
-    float z_sq = r*r - x*x - y*y;
+float sphere_z(vec2 xy) {
+    float r = fs_in.radius;
+    float z_sq = r*r - dot(xy, xy);
     if (z_sq > 0.0) {
         return sqrt(z_sq);
     }else{
-        return -eta*(length(vec2(x,y))-r);
+        return -eta*(length(xy) - r);
     }
 }
 
 vec3 sphere_lookup(int i) {
-    float h = 0.5/float(num_atoms);
-    vec4 c = texture(sphere_texture, (float(i)+h)/(float(num_atoms)));
+    vec4 c = texelFetch(sphere_texture, i, 0);
     return (view*c).rgb;
 }
 
 float radius_lookup(int i) {
-    float h = 0.5/float(num_atoms);
-    return radius_scale * texture(radius_texture, (float(i)+h)/(float(num_atoms))).r;
+    return radius_scale * texelFetch(radius_texture, i, 0).r;
 }
 
 int neighbor(int i) {
-    float texel_count = float(neighbor_count * num_atoms);
-    float texel_width = 1.0/texel_count;
-    float shift = texel_width / 2.0;
-    float coord = (fs_in.sphere_number * neighbor_count) + float(i) + shift;
-    coord /= texel_count;
-    return int(texture(neighbor_texture, coord).r);
+    return int(texelFetch(neighbor_texture, max_neighbor_count*fs_in.sphere_number + i, 0).r);
 }
 
 void lighting(vec3 p, vec3 normal) {
@@ -83,7 +76,7 @@ void lighting(vec3 p, vec3 normal) {
         }
         float r = radius_lookup(i);
         float d = distance(q, p);
-        color.rgb *= 1.0 - ambient_occlusion*cos_alpha*pow(r/d, decay);
+        color.rgb *= 1-ambient_occlusion*cos_alpha*pow(r/d, decay);
     }
 }
 
@@ -92,7 +85,7 @@ void main()
     // The local coordinates are centered on the spheres (i.e. the sphere
     // center is the origin).
     vec3 local_coordinates = fs_in.billboard_coordinates - fs_in.sphere_center;
-    local_coordinates.z = sphere_z(local_coordinates.x, local_coordinates.y, fs_in.radius);
+    local_coordinates.z = sphere_z(local_coordinates.xy);
 
     // The global coordinates are the point on the sphere in in world space.
     vec3 global_coordinates = fs_in.billboard_coordinates;

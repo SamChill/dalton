@@ -7,7 +7,7 @@ layout (triangle_strip, max_vertices=4) out;
 in VS_OUT {
     float radius;
     vec3 sphere_color;
-    float sphere_number;
+    int sphere_number;
 } gs_in[];
 
 out GS_OUT {
@@ -15,7 +15,7 @@ out GS_OUT {
     vec3 billboard_coordinates;
     vec3 sphere_center;
     vec3 sphere_color;
-    float sphere_number;
+    flat int sphere_number;
 } gs_out;
 
 uniform float radius_scale;

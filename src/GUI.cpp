@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 #include <Resource.h>
+#include <FreeImage.h>
+#include <future>
 
 // Includes for the GLTexture class.
 #include <cstdint>
@@ -20,7 +22,7 @@ using std::string;
 using namespace nanogui;
 
 
-GUI::GUI(std::string filename) :
+GUI::GUI() :
     nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
     performance_monitor_(0.25),
     arcball_(2.0f),
@@ -30,11 +32,68 @@ GUI::GUI(std::string filename) :
     outline_(0.0),
     eta_(0.0),
     ambient_occlusion_(1.0),
-    decay_(1.5)
+    decay_(1.5),
+    neighbor_count_(0)
 {
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "");
+
+    gui->addGroup("File");
+    gui->addButton("Open", [this]() {
+        std::string path = file_dialog({{"xyz", "xyz file format"}}, false);
+        setXYZPath(path);
+    });
+    //gui->addButton("Save Screenshot", [this]() {
+        //shader_.bind();
+        //GLuint framebuffer;
+        //glGenFramebuffers(1, &framebuffer);
+        //glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        //GLuint texture;
+        //glGenTextures(1, &texture);
+        //glBindTexture(GL_TEXTURE_2D, texture);
+        //glTexImage2D(
+        //        GL_TEXTURE_2D, 0, GL_RGB, mSize.x(), mSize.y(), 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        //GLuint depthbuffer;
+        //glGenRenderbuffers(1, &depthbuffer);
+        //glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer);
+        //glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, mSize.x(), mSize.y());
+        //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuffer);
+        //glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture, 0);
+        //GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+        //glDrawBuffers(1, DrawBuffers);
+        //glViewport(0, 0, mSize.x(), mSize.y());
+
+        //glEnable(GL_DEPTH_TEST);
+        //shader_.drawArray(GL_POINTS, 0, atoms_.size());
+        //glDisable(GL_DEPTH_TEST);
+
+        //// Create Pixel Array
+        //GLubyte* pixels = new GLubyte [3 * mSize.x() * mSize.y()];
+
+        //// Read Pixels From Screen And Buffer Into Array
+        //glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        //glReadPixels(0, 0, mSize.x(), mSize.y(), GL_BGR, GL_UNSIGNED_BYTE, pixels);
+
+        //// Convert To FreeImage And Save
+        //FIBITMAP* image = FreeImage_ConvertFromRawBits(pixels, mSize.x(),
+        //                                                    mSize.y(), 3 * mSize.x(), 24,
+        //                                                    0x0000FF, 0xFF0000, 0x00FF00, false);
+
+        //std::async(
+        //    std::launch::async,
+        //    [&image](){
+        //        std::string path = file_dialog({ {"png", "Portable Network Graphics"} }, true);
+        //        FreeImage_Save((FREE_IMAGE_FORMAT) FIF_PNG, image, path.c_str(), 0);
+        //});
+
+        //// Free Resources
+        //FreeImage_Unload(image);
+        //delete [] (pixels);
+    //});
+
 
     gui->addGroup("Geometry");
     FloatBox<float> *radius_scale_box = gui->addVariable("radius", radius_scale_);
@@ -80,6 +139,10 @@ GUI::GUI(std::string filename) :
     eta_box->setValueIncrement(0.2);
 
     gui->addGroup("Ambient Occlusion");
+    neighbor_count_box_ = gui->addVariable("neighbour count", neighbor_count_);
+    neighbor_count_box_->setSpinnable(true);
+    neighbor_count_box_->setMinValue(0);
+
     FloatBox<float> *ambient_occlusion_box = gui->addVariable("strength", ambient_occlusion_);
     ambient_occlusion_box->setSpinnable(true);
     ambient_occlusion_box->setMinValue(0.00);
@@ -112,7 +175,7 @@ GUI::GUI(std::string filename) :
                     decay_ = 2.0;
                     break;
                 case 2: //Cell shading
-                    saturation_ = 0.4;
+                    saturation_ = 0.6;
                     outline_ = 0.25;
                     eta_ = 2.6;
                     ambient_occlusion_ = 0.2;
@@ -145,181 +208,62 @@ GUI::GUI(std::string filename) :
             eta_box->setValue(eta_);
             ambient_occlusion_box->setValue(ambient_occlusion_);
             decay_box->setValue(decay_);
-
-            saturation_box->setEnabled(i==0);
-            outline_box->setEnabled(i==0);
-            eta_box->setEnabled(i==0);
-            ambient_occlusion_box->setEnabled(i==0);
-            decay_box->setEnabled(i==0);
     });
     presets_box->setSelectedIndex(3);
 
     // Finalize widget setup.
     performLayout();
-
-    // Load and initialzer shaders.
-    Resource vertexShader   = LOAD_RESOURCE(vertex_glsl);
-    Resource fragmentShader = LOAD_RESOURCE(fragment_glsl);
-    Resource geometryShader = LOAD_RESOURCE(geometry_glsl);
-    shader_.init(
-        "scene",
-        string(vertexShader.data(), vertexShader.size()),
-        string(fragmentShader.data(), fragmentShader.size()),
-        string(geometryShader.data(), geometryShader.size())
-    );
-
-    shader_.bind();
-
-    atoms_ = Atoms::readXYZ(filename);
-    AtomMatrix coordinates = atoms_.coordinates();
-    coordinates.rowwise() -= (coordinates.colwise().sum() / ((float) atoms_.size())).eval();
-    box_size_ = (coordinates.colwise().maxCoeff() - coordinates.colwise().minCoeff()).maxCoeff();
-    box_size_ *= 1.5;
-    atoms_.setCoordinates(coordinates);
-    shader_.uploadAttrib("radius", atoms_.radii().transpose());
-    shader_.uploadAttrib("sphere_color", atoms_.colors().transpose());
-
-    // Texture.
-    AtomMatrix sphere_centers = atoms_.coordinates();
-    GLuint sphere_texture;
-    glGenTextures(1, &sphere_texture);
-    glBindTexture(GL_TEXTURE_1D, sphere_texture);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage1D(
-        GL_TEXTURE_1D,
-        0,
-        GL_RGB32F,
-        sphere_centers.rows(),
-        0,
-        GL_RGB,
-        GL_FLOAT,
-        sphere_centers.transpose().data()
-    );
-
-    GLuint radius_texture;
-    glGenTextures(1, &radius_texture);
-    glBindTexture(GL_TEXTURE_1D, radius_texture);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage1D(
-        GL_TEXTURE_1D,
-        0,
-        GL_R32F,
-        atoms_.radii().rows(),
-        0,
-        GL_RED,
-        GL_FLOAT,
-        atoms_.radii().data()
-    );
-
-    int max_texture_size;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
-    neighbor_count_ = std::min(max_texture_size / atoms_.size(), atoms_.size()-1);
-    neighbor_count_ = std::min(40, neighbor_count_);
-
-    NeighborList neighbor_list;
-    if (neighbor_count_ < 8 && atoms_.size() > 9) {
-        neighbor_count_ = 0;
-        std::cerr << "warning: max texture size too small: ao disabled" << std::endl;
-    }else{
-        neighbor_list = atoms_.neighborList(neighbor_count_);
-    }
-
-    shader_.setUniform("neighbor_count", neighbor_count_);
-    GLuint neighbor_texture;
-    glGenTextures(1, &neighbor_texture);
-    glBindTexture(GL_TEXTURE_1D, neighbor_texture);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage1D(
-        GL_TEXTURE_1D,
-        0,
-        GL_R32F,
-        neighbor_list.cols() * neighbor_list.rows(),
-        0,
-        GL_RED,
-        GL_FLOAT,
-        neighbor_list.transpose().data()
-    );
-
-    shader_.setUniform("sphere_texture", 0);
-    shader_.setUniform("radius_texture", 1);
-    shader_.setUniform("neighbor_texture", 2);
-
-    glActiveTexture(GL_TEXTURE0 + 0);
-    glBindTexture(GL_TEXTURE_1D, sphere_texture);
-    glActiveTexture(GL_TEXTURE0 + 1);
-    glBindTexture(GL_TEXTURE_1D, radius_texture);
-    glActiveTexture(GL_TEXTURE0 + 2);
-    glBindTexture(GL_TEXTURE_1D, neighbor_texture);
-}
-
-GUI::~GUI() {
-    shader_.free();
 }
 
 bool GUI::scrollEvent(const Eigen::Vector2i &p, const Eigen::Vector2f &rel) {
     if (!nanogui::Screen::scrollEvent(p, rel)) {
         zoom_ -= 0.1*rel.y();
+        return true;
     }
+    return false;
 }
 
 bool GUI::mouseButtonEvent(const Vector2i &p, int button, bool down, int modifiers) {
     if (!nanogui::Screen::mouseButtonEvent(p, button, down, modifiers)) {
         if (button == 0) {
             arcball_.button(p, down);
+            return true;
         }
     }
+    return false;
+}
+
+void GUI::setXYZPath(std::string path)
+{
+    scene_.setAtoms(Atoms::readXYZ(path));
+    neighbor_count_ = std::min(16, scene_.maxNeighbors());
+    neighbor_count_box_->setValue(neighbor_count_);
+    neighbor_count_box_->setMaxValue(scene_.maxNeighbors());
 }
 
 void GUI::drawContents() {
-    shader_.bind();
-
-    // Get sphere centers.
-    AtomMatrix sphere_centers = atoms_.coordinates();
-    shader_.uploadAttrib("sphere_center", sphere_centers.transpose());
-
-    Eigen::VectorXf sphere_numbers = Eigen::VectorXf::Zero(atoms_.size());
-    for (int i=0; i<atoms_.size(); i++) {
-        sphere_numbers(i) = float(i);
-    }
-    shader_.uploadAttrib("sphere_number", sphere_numbers.transpose());
-
-    // Make perspective matrix.
     float aspect_ratio = float(mSize.x()) / float(mSize.y());
-    float zoom = std::exp(zoom_);
-    Matrix4f projection = ortho(
-        -box_size_/2.0*zoom*aspect_ratio, box_size_/2.0*zoom*aspect_ratio,
-        -box_size_/2.0*zoom, box_size_/2.0*zoom,
-        -box_size_/2.0, box_size_/2.0);
-    shader_.setUniform("projection", projection);
 
     // Make view matrix.
     arcball_.setSize(mSize);
-
     arcball_.motion(mousePos());
     Matrix4f view = arcball_.matrix();
-    shader_.setUniform("view", view);
 
-    // Update uniforms.
-    shader_.setUniform("num_atoms", (int)atoms_.size());
-    shader_.setUniform("ambient_occlusion", ambient_occlusion_);
-    shader_.setUniform("radius_scale", radius_scale_);
-    shader_.setUniform("box_size", box_size_);
-    shader_.setUniform("saturation", saturation_);
-    shader_.setUniform("outline", outline_);
-    shader_.setUniform("decay", decay_);
-    shader_.setUniform("eta", std::exp(eta_));
-
-    // Draw points.
-    glEnable(GL_DEPTH_TEST);
-    shader_.drawArray(GL_POINTS, 0, sphere_centers.rows());
-    glDisable(GL_DEPTH_TEST);
+    // render the scene.
+    scene_.render(
+        aspect_ratio,
+        zoom_,
+        view,
+        radius_scale_,
+        saturation_,
+        outline_,
+        eta_,
+        neighbor_count_,
+        ambient_occlusion_,
+        decay_);
 
     // Calculate fps.
     performance_monitor_.update();
     fps_label_->setCaption(std::to_string(performance_monitor_.fps()).substr(0,5));
     render_time_label_->setCaption(std::to_string(performance_monitor_.renderTime()).substr(0,5));
-
 }
