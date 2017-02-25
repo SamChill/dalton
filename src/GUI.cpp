@@ -259,7 +259,7 @@ GUI::GUI() :
             clear_before_render_ = true;
         }
     );
-    FloatBox<float> *focal_strength_box = gui->addVariable("focal strength", focal_strength_);
+    FloatBox<float> *focal_strength_box = gui->addVariable("focal blur", focal_strength_);
     focal_strength_box->setSpinnable(true);
     focal_strength_box->setMinValue(0.0);
     focal_strength_box->setMaxValue(1.00);
