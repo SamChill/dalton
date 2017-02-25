@@ -1,3 +1,7 @@
+<div align="center">
+<img src="https://samchill.github.io/dalton/images/john_dalton.jpg" alt="John Dalton" width="200">
+</div>
+
 # Dalton
 
 ## Installation
