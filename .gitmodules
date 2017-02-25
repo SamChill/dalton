@@ -1,0 +1,6 @@
+[submodule "ext/embed-resource"]
+	path = ext/embed-resource
+	url = https://github.com/cyrilcode/embed-resource.git
+[submodule "ext/nanogui"]
+	path = ext/nanogui
+	url = https://github.com/wjakob/nanogui.git
