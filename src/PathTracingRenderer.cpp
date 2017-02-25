@@ -214,10 +214,9 @@ void PathTracingRenderer::reinitialize()
         glFramebufferRenderbuffer(
             GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderbuffer_[i]);
 
-
         GLenum fb_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if(fb_status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "error: accumulator framebuffer is not complete" << fb_status << std::endl;
+            std::cerr << "error: accumulator framebuffer is not complete: " << fb_status << std::endl;
         }
     }
 
