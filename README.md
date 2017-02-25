@@ -1,5 +1,6 @@
 # Dalton
 
+## Installation
 Compile and run like so:
 
     sudo apt install build-essential cmake xorg-dev libglu1-mesa-dev libboost-filesystem-dev
@@ -7,3 +8,7 @@ Compile and run like so:
     cd dalton
     make -j 4
     ./build/dalton
+
+## Screenshots
+
+![screenshots](https://samchill.github.io/dalton/images/examples.gif)
