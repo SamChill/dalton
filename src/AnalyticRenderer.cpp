@@ -34,6 +34,9 @@ AnalyticRenderer::AnalyticRenderer(Eigen::Vector2i &screen_size)
 
 void AnalyticRenderer::setAtoms(const Atoms atoms)
 {
+    if (atoms.size() == 0) {
+        return;
+    }
     analytic_shader_.bind();
     glDisable(GL_BLEND);
 

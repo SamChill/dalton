@@ -56,7 +56,7 @@ public:
         updated_ = false;
     }
 
-    size_t size() {
+    size_t size() const {
         return coordinates_.rows();
     }
 

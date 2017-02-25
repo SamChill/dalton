@@ -37,7 +37,6 @@ PathTracingRenderer::PathTracingRenderer(Eigen::Vector2i &screen_size)
     int random_texture_size_ = 512;
     AtomMatrix random = AtomMatrix::Zero(random_texture_size_*random_texture_size_, 3);
     size_t i=0;
-    std::cout << "Generating high quality entropy." << std::endl;
     while (i < random_texture_size_*random_texture_size_) {
         Eigen::Vector3f r = Eigen::Vector3f::Zero(3);
         r(0) = dis(generator);

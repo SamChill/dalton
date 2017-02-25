@@ -47,6 +47,10 @@ GUI::GUI() :
     ambient_light_(1.0),
     direct_light_(0.0)
 {
+    trajectory_ = {Atoms()};
+    analytic_renderer_.setAtoms(trajectory_[0]);
+    path_tracing_renderer_.setAtoms(trajectory_[0]);
+
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
     ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "");
