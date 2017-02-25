@@ -7,7 +7,7 @@ class Element
 {
 public:
     Element() {};
-    Element(Eigen::Vector3f color, double radius, double mass, float metallic=0.4)
+    Element(Eigen::Vector3f color, double radius, double mass, float metallic=0.6)
         : color(color), radius(radius), mass(mass), metallic(metallic)
         {}
 
