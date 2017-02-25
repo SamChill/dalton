@@ -1,8 +1,13 @@
+
+# Dalton
 <div align="center">
 <img src="https://samchill.github.io/dalton/images/john_dalton.jpg" alt="John Dalton" width="200">
 </div>
 
-# Dalton
+
+## Screenshots
+
+![screenshots](https://samchill.github.io/dalton/images/examples.gif)
 
 ## Installation
 Compile and run like so:
@@ -12,7 +17,3 @@ Compile and run like so:
     cd dalton
     make -j 4
     ./build/dalton
-
-## Screenshots
-
-![screenshots](https://samchill.github.io/dalton/images/examples.gif)
