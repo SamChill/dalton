@@ -188,7 +188,7 @@ void PathTracingRenderer::reinitialize()
         glTexImage2D(
             GL_TEXTURE_2D,
             0,
-            GL_RGB32F,
+            GL_RGBA32F,
             screen_size_(0)/resolution_factor_,
             screen_size_(1)/resolution_factor_,
             0,
@@ -213,6 +213,12 @@ void PathTracingRenderer::reinitialize()
             screen_size_(1)/resolution_factor_);
         glFramebufferRenderbuffer(
             GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderbuffer_[i]);
+
+
+        GLenum fb_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if(fb_status != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "error: accumulator framebuffer is not complete" << fb_status << std::endl;
+        }
     }
 
 
