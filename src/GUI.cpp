@@ -68,48 +68,6 @@ GUI::GUI() :
     render_method_box_->setFontSize(16);
     gui->addWidget("", render_method_box_);
 
-    //gui->addGroup("Movie Controls");
-    //frame_label_ = new Label(window, "1/1");
-    //gui->addWidget("", frame_label_);
-    //movie_slider_ = new Slider(window);
-    //movie_slider_->setRange({0.0, 0.0});
-    //movie_slider_->setCallback(
-    //    [this](float frame) {
-    //        frame_ = int(frame);
-    //    }
-    //);
-    //gui->addWidget("", movie_slider_);
-    //Widget *tools = new Widget(window);
-    //tools->setLayout(new BoxLayout(Orientation::Horizontal,
-    //                               Alignment::Middle, 0, 6));
-
-    //auto b = new Button(tools, "", ENTYPO_ICON_FB);
-    //b->setCallback(
-    //    [this, b]() {
-    //        playing_ = false;
-    //        frame_ = 0;
-    //        play_button_->setPushed(false);
-    //    }
-    //);
-
-    //play_button_ = new Button(tools, "", ENTYPO_ICON_PLAY);
-    //play_button_->setChangeCallback(
-    //    [this, b](bool enabled) {
-    //        playing_ = enabled;
-    //    }
-    //);
-    //play_button_->setFlags(nanogui::Button::Flags::ToggleButton);
-
-    //b = new Button(tools, "", ENTYPO_ICON_FF);
-    //b->setCallback(
-    //    [this]() {
-    //        playing_ = false;
-    //        frame_ = scene_.trajectoryLength();
-    //        play_button_->setPushed(false);
-    //    }
-    //);
-    //gui->addWidget("", tools);
-
     gui->addGroup("Atom Properties");
     FloatBox<float> *radius_scale_box = gui->addVariable("radius", radius_scale_);
     radius_scale_box->setSpinnable(true);
@@ -414,7 +372,6 @@ GUI::GUI() :
     ambient_light_box->setEnabled(false);
     direct_light_box->setEnabled(false);
 
-
     // Finalize widget setup.
     performLayout();
 }
@@ -471,24 +428,9 @@ void GUI::setXYZPath(std::string path)
     neighbor_count_box_->setMaxValue(max_neighbors);
     neighbor_count_ = std::min(32, max_neighbors);
     neighbor_count_box_->setValue(neighbor_count_);
-    //movie_slider_->setRange({0, scene_.trajectoryLength()-1});
 }
 
 void GUI::drawContents() {
-    //if (playing_) {
-    //    frame_ += 1;
-    //}
-    //if (frame_ >= scene_.trajectoryLength()) {
-    //    playing_ = false;
-    //    frame_ = scene_.trajectoryLength() - 1;
-    //    play_button_->setPushed(false);
-    //}
-    //frame_label_->setCaption(
-    //    "Frame " + std::to_string(frame_ + 1) + "/" + std::to_string(scene_.trajectoryLength()));
-    //scene_.setTrajectoryIndex(frame_);
-    //movie_slider_->setValue(scene_.trajectoryIndex());
-    //neighbor_count_box_->setMaxValue(scene_.maxNeighbors());
-
     // Make projection matrix.
     float aspect_ratio = float(mSize.x()) / float(mSize.y());
     float exp_zoom = std::exp(zoom_);
