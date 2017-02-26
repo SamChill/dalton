@@ -47,6 +47,8 @@ GUI::GUI() :
     ambient_light_(1.0),
     direct_light_(0.0)
 {
+    // hack to support high-dpi displays.
+    resizeEvent(mSize);
     trajectory_ = {Atoms()};
     analytic_renderer_.setAtoms(trajectory_[0]);
     path_tracing_renderer_.setAtoms(trajectory_[0]);
@@ -374,7 +376,7 @@ void GUI::setRenderMethod(RenderMethod render_method) {
 
 
 bool GUI::resizeEvent(const Eigen::Vector2i &size) {
-    path_tracing_renderer_.resize(size);
+    path_tracing_renderer_.resize(size*mPixelRatio);
 }
 
 bool GUI::scrollEvent(const Eigen::Vector2i &p, const Eigen::Vector2f &rel) {
