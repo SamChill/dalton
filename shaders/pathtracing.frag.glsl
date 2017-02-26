@@ -103,8 +103,8 @@ Sphere hitSphere(Ray ray, out bool hit, out float time, out int idx) {
 
 void main() {
     vec3 jitter = vec3(rand3().xy + vec2(0.5), 0.0);
-    jitter.x /= float(screen_size.x);
-    jitter.y /= float(screen_size.y);
+    jitter.x /= 2*float(screen_size.x);
+    jitter.y /= 2*float(screen_size.y);
     jitter = (inverse(view)*inverse(projection)*vec4(jitter, 0.0)).xyz;
 
     Ray ray = Ray(
