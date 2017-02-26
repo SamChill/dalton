@@ -146,9 +146,7 @@ GUI::GUI() :
     gui->addWidget("background", bg_color_picker);
 
     gui->addGroup("Analytic Options");
-    //Label *dummy_label = new Label(window, "");
-    //gui->addWidget("presets", dummy_label);
-    ComboBox *presets_box = new ComboBox(
+    ComboBox *analytic_presets_box = new ComboBox(
         window,
         {
             "2D",
@@ -165,8 +163,8 @@ GUI::GUI() :
             "B&W",
         }
     );
-    presets_box->setFontSize(16);
-    gui->addWidget("preset", presets_box);
+    analytic_presets_box->setFontSize(16);
+    gui->addWidget("preset", analytic_presets_box);
 
     FloatBox<float> *outline_box = gui->addVariable("outline width", outline_);
     outline_box->setSpinnable(true);
@@ -196,6 +194,22 @@ GUI::GUI() :
     decay_box->setValueIncrement(0.1);
 
     gui->addGroup("Path Tracing Options");
+    ComboBox *path_tracing_presets_box = new ComboBox(
+        window,
+        {
+            "Ambient Occlusion",
+            "Shiny",
+            "Plastic",
+        },
+        {
+            "AO",
+            "Shiny",
+            "Plastic",
+        }
+    );
+    path_tracing_presets_box->setFontSize(16);
+    gui->addWidget("preset", path_tracing_presets_box);
+
     ComboBox *resolution_factor_box = new ComboBox(
         window,
         {"High", "Medium", "Low"},
@@ -288,8 +302,8 @@ GUI::GUI() :
     samples_label_ = new Label(window, "0");
     gui->addWidget("monte carlo samples", samples_label_);
 
-    presets_box->setCallback(
-        [this,saturation_box,outline_box,eta_box,ambient_occlusion_box,decay_box](int i) {
+    analytic_presets_box->setCallback(
+        [=](int i) {
             // 2D
             switch (i) {
                 case 0: //2D
@@ -334,7 +348,37 @@ GUI::GUI() :
             ambient_occlusion_box->setValue(ambient_occlusion_);
             decay_box->setValue(decay_);
     });
-    presets_box->setSelectedIndex(2);
+    analytic_presets_box->setSelectedIndex(2);
+
+    path_tracing_presets_box->setCallback(
+        [=](int i) {
+            switch (i) {
+                case 0: //AO
+                    max_bounces_ = 1;
+                    shininess_ = 0.0;
+                    ambient_light_ = 1.0;
+                    direct_light_ = 0.0;
+                    break;
+                case 1: //Shiny
+                    max_bounces_ = 4;
+                    shininess_ = 0.55;
+                    ambient_light_ = 0.05;
+                    direct_light_ = 2.0;
+                    break;
+                case 2: //Plastic
+                    max_bounces_ = 2;
+                    shininess_ = 0.6;
+                    ambient_light_ = 0.85;
+                    direct_light_ = 1.2;
+                    break;
+            }
+            clear_before_render_ = true;
+            max_bounces_box->setValue(max_bounces_);
+            shininess_box->setValue(shininess_);
+            ambient_light_box->setValue(ambient_light_);
+            direct_light_box->setValue(direct_light_);
+        }
+    );
 
     render_method_box_->setCallback(
         [=](int i) {
@@ -342,13 +386,14 @@ GUI::GUI() :
             bool analytic = render_method == Analytic;
             bool path_tracing = render_method == PathTracing;
 
-            presets_box->setEnabled(analytic);
+            analytic_presets_box->setEnabled(analytic);
             neighbor_count_box_->setEnabled(analytic);
             outline_box->setEnabled(analytic);
             eta_box->setEnabled(analytic);
             ambient_occlusion_box->setEnabled(analytic);
             decay_box->setEnabled(analytic);
 
+            path_tracing_presets_box->setEnabled(path_tracing);
             resolution_factor_box->setEnabled(path_tracing);
             max_bounces_box->setEnabled(path_tracing);
             shininess_box->setEnabled(path_tracing);
@@ -360,6 +405,15 @@ GUI::GUI() :
             setRenderMethod(render_method);
         }
     );
+    path_tracing_presets_box->setEnabled(false);
+    resolution_factor_box->setEnabled(false);
+    max_bounces_box->setEnabled(false);
+    shininess_box->setEnabled(false);
+    focal_distance_box->setEnabled(false);
+    focal_strength_box->setEnabled(false);
+    ambient_light_box->setEnabled(false);
+    direct_light_box->setEnabled(false);
+
 
     // Finalize widget setup.
     performLayout();
