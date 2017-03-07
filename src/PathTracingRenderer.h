@@ -30,6 +30,7 @@ public:
                 AnalyticRenderer *analytic_renderer);
 
     GLuint samples;
+
 private:
     Atoms atoms_;
     void reinitialize();
@@ -37,15 +38,17 @@ private:
     Eigen::Vector4f background_color_;
     Eigen::Vector2i screen_size_;
     Eigen::Vector3f camera_coordinates_;
-    nanogui::GLShader render_shader_, display_shader_;
+    nanogui::GLShader render_shader_, display_shader_, adaptive_sampling_shader_;
     GLuint sphere_texture_, sphere_color_texture_, random_texture_, material_texture_;
     GLuint accumulator_framebuffers_[2], accumulator_textures_[2];
+    GLuint statistics_textures_[2];
     GLuint renderbuffer_[2];
     static const GLuint sphere_texture_unit_ = 0;
     static const GLuint sphere_color_texture_unit_ = 1;
     static const GLuint accumulator_texture_unit_ = 2;
     static const GLuint random_texture_unit_ = 3;
     static const GLuint material_texture_unit_ = 4;
+    static const GLuint statistics_texture_unit_ = 5;
     float max_world_depth_;
     bool resized_;
     float sampling_weight_;

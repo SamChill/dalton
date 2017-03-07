@@ -85,6 +85,9 @@ std::vector<Atoms> Atoms::readXYZ(std::string filename)
 
 NeighborList Atoms::neighborList(int neighbor_count)
 {
+    if (size() == 0) {
+        return NeighborList::Zero(1,1);
+    }
     NeighborList neighbor_list = NeighborList::Zero(size(), neighbor_count);
     Eigen::MatrixXf distance_matrix = Eigen::MatrixXf::Zero(size(), size());
     for (int i=0; i<size(); i++) {

@@ -2,7 +2,8 @@
 in vec3 camera_origin;
 in vec3 camera_direction;
 in vec2 uv;
-out vec4 color;
+layout (location = 0) out vec4 color;
+layout (location = 1) out vec4 statistics;
 
 uniform float shininess;
 uniform int max_bounces;
@@ -12,6 +13,7 @@ uniform sampler1D sphere_texture;
 uniform sampler1D sphere_color_texture;
 uniform sampler1D material_texture;
 uniform sampler2D accumulator_texture;
+uniform sampler2D statistics_texture;
 uniform sampler2D random_texture;
 uniform ivec2 screen_size;
 uniform mat4 view;
@@ -156,7 +158,8 @@ void main() {
 
         mask *= hitsphere.color;
     }
-    color *= sampling_weight;
-    color.a = 1.0;
+    statistics.rgb = color.rgb * color.rgb + texture(statistics_texture, uv).rgb;
+    statistics.a = 1 + texture(statistics_texture, uv).a;
     color += texture(accumulator_texture, uv);
+    color.a = 1.0;
 }

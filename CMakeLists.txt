@@ -38,6 +38,8 @@ embed_resources(Shaders
     shaders/display.frag.glsl
     shaders/background.vert.glsl
     shaders/background.frag.glsl
+    shaders/adaptive_sampling.vert.glsl
+    shaders/adaptive_sampling.frag.glsl
 )
 
 # Compile a target using NanoGUI

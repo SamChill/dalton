@@ -1,4 +1,5 @@
 #include <memory>
+#include <functional>
 
 #include <nanogui/nanogui.h>
 #include <nanogui/screen.h>

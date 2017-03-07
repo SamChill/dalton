@@ -30,6 +30,16 @@ PathTracingRenderer::PathTracingRenderer(Eigen::Vector2i &screen_size)
         );
     }
 
+    {
+        Resource vertex_source = LOAD_RESOURCE(adaptive_sampling_vert_glsl);
+        Resource fragment_source = LOAD_RESOURCE(adaptive_sampling_frag_glsl);
+        adaptive_sampling_shader_.init(
+            "Adaptive sampling",
+            std::string(vertex_source.data(),   vertex_source.size()),
+            std::string(fragment_source.data(), fragment_source.size())
+        );
+    }
+
     std::random_device rd{};
     std::mt19937 generator{rd()};
     std::uniform_real_distribution<double> dis(-1.0, 1.0);
@@ -77,9 +87,9 @@ void PathTracingRenderer::clear()
     // Clear the "ping-pong" framebuffers.
     for (int i=0; i<2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, accumulator_framebuffers_[i]);
-        float black[4] = {0.0, 0.0, 0.0, 0.0};
-        glClearBufferfv(GL_COLOR, 0, &black[0]);
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, attachments);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
 
     // Switch the framebuffer back to the screen.
@@ -196,12 +206,34 @@ void PathTracingRenderer::reinitialize()
             GL_FLOAT,
             NULL
         );
-
         glFramebufferTexture2D(
             GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, accumulator_textures_[i], 0);
-        glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+        glDeleteTextures(1, &statistics_textures_[i]);
+        glGenTextures(1, &statistics_textures_[i]);
+        glBindTexture(GL_TEXTURE_2D, statistics_textures_[i]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA32F,
+            screen_size_(0)/resolution_factor_,
+            screen_size_(1)/resolution_factor_,
+            0,
+            GL_RGB,
+            GL_FLOAT,
+            NULL
+        );
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, statistics_textures_[i], 0);
+
+        GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, attachments);
         float black[4] = {0.0, 0.0, 0.0, 0.0};
         glClearBufferfv(GL_COLOR, 0, &black[0]);
+        glClearBufferfv(GL_COLOR, 1, &black[0]);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         glDeleteRenderbuffers(1, &renderbuffer_[i]);
         glGenRenderbuffers(1, &renderbuffer_[i]);
@@ -228,6 +260,11 @@ void PathTracingRenderer::reinitialize()
     display_shader_.bind();
     display_shader_.uploadIndices(indices);
     display_shader_.uploadAttrib("quad", quad);
+
+    // Setup the adaptive sampling shader. It updates the stencil buffer.
+    adaptive_sampling_shader_.bind();
+    adaptive_sampling_shader_.uploadIndices(indices);
+    adaptive_sampling_shader_.uploadAttrib("quad", quad);
 }
 
 void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
@@ -250,7 +287,12 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
     }
     render_shader_.bind();
     glDisable(GL_BLEND);
+    //glDisable(GL_ALPHA);
+    //glDisable(GL_ALPHA_TEST);
     //glDisable(GL_DEPTH_TEST);
+    //glDisable(GL_DEPTH);
+    GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
 
     /* Setup uniforms */
     render_shader_.setUniform("projection", projection_matrix);
@@ -265,6 +307,7 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
     render_shader_.setUniform("sphere_color_texture", sphere_color_texture_unit_);
     render_shader_.setUniform("random_texture", random_texture_unit_);
     render_shader_.setUniform("accumulator_texture", accumulator_texture_unit_);
+    render_shader_.setUniform("statistics_texture", statistics_texture_unit_);
     render_shader_.setUniform("material_texture", material_texture_unit_);
     Eigen::Vector2i scaled_screen_size = screen_size_;
     scaled_screen_size(0) /= resolution_factor_;
@@ -274,13 +317,13 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
     render_shader_.setUniform("focal_strength", focal_strength);
     render_shader_.setUniform("ambient_light", ambient_light);
     render_shader_.setUniform("direct_light", direct_light);
-    render_shader_.setUniform("sampling_weight", sampling_weight_);
+    //render_shader_.setUniform("sampling_weight", sampling_weight_);
     Eigen::Vector2f rand_offset = Eigen::Vector2f::Random(2);
     render_shader_.setUniform("rand_offset", rand_offset);
 
     /* Bind textures */
-    size_t const read_idx = samples % 2;
-    size_t const write_idx = (samples + 1) % 2;
+    size_t const read_idx = (samples+1) % 2;
+    size_t const write_idx = (samples) % 2;
     glActiveTexture(GL_TEXTURE0 + sphere_texture_unit_);
     glBindTexture(GL_TEXTURE_1D, sphere_texture_);
     glActiveTexture(GL_TEXTURE0 + sphere_color_texture_unit_);
@@ -291,10 +334,12 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
     glBindTexture(GL_TEXTURE_2D, random_texture_);
     glActiveTexture(GL_TEXTURE0 + accumulator_texture_unit_);
     glBindTexture(GL_TEXTURE_2D, accumulator_textures_[read_idx]);
+    glActiveTexture(GL_TEXTURE0 + statistics_texture_unit_);
+    glBindTexture(GL_TEXTURE_2D, statistics_textures_[read_idx]);
 
     glBindFramebuffer(GL_FRAMEBUFFER, accumulator_framebuffers_[write_idx]);
     glViewport(0, 0, scaled_screen_size(0), scaled_screen_size(1));
-    if (samples == 0) {
+    if (samples == -1) {
         analytic_renderer->render(
             projection_matrix,
             view_matrix,
@@ -308,25 +353,66 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
             2.0);
     }else{
         /* Make a single pass of the path tracing algorithm. */
+        glEnable(GL_STENCIL_TEST);
+        if (samples == 0) {
+            glStencilFunc(GL_EQUAL, 0, 0xFF);
+            glClear(GL_COLOR_BUFFER_BIT);
+        }else{
+            glStencilFunc(GL_EQUAL, 1, 0xFF);
+        }
         render_shader_.drawIndexed(GL_TRIANGLES, 0, 2);
+        glDisable(GL_STENCIL_TEST);
     }
     samples += 1;
 
     /* Render the accumulated image to screen */
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     display_shader_.bind();
-    display_shader_.setUniform("samples", samples);
     display_shader_.setUniform("accumulator_texture", accumulator_texture_unit_);
-    display_shader_.setUniform("sampling_weight", sampling_weight_);
-    glActiveTexture(GL_TEXTURE0 + accumulator_texture_unit_);
+    display_shader_.setUniform("statistics_texture", statistics_texture_unit_);
     glViewport(
         0,
         0,
         screen_size_(0),
         screen_size_(1)
     );
+    glActiveTexture(GL_TEXTURE0 + accumulator_texture_unit_);
     glBindTexture(GL_TEXTURE_2D, accumulator_textures_[write_idx]);
+    glActiveTexture(GL_TEXTURE0 + statistics_texture_unit_);
+    glBindTexture(GL_TEXTURE_2D, statistics_textures_[write_idx]);
+
     display_shader_.drawIndexed(GL_TRIANGLES, 0, 2);
 
-    glEnable(GL_DEPTH_TEST);
+    // adaptive sampling
+    glBindFramebuffer(GL_FRAMEBUFFER, accumulator_framebuffers_[read_idx]);
+    adaptive_sampling_shader_.bind();
+    glViewport(0, 0, scaled_screen_size(0), scaled_screen_size(1));
+    adaptive_sampling_shader_.setUniform("accumulator_texture", accumulator_texture_unit_);
+    adaptive_sampling_shader_.setUniform("statistics_texture", statistics_texture_unit_);
+    adaptive_sampling_shader_.setUniform("random_texture", random_texture_unit_);
+    rand_offset = Eigen::Vector2f::Random(2);
+    adaptive_sampling_shader_.setUniform("rand_offset", rand_offset);
+    glActiveTexture(GL_TEXTURE0 + accumulator_texture_unit_);
+    glBindTexture(GL_TEXTURE_2D, accumulator_textures_[write_idx]);
+    glActiveTexture(GL_TEXTURE0 + statistics_texture_unit_);
+    glBindTexture(GL_TEXTURE_2D, statistics_textures_[write_idx]);
+    glActiveTexture(GL_TEXTURE0 + random_texture_unit_);
+    glBindTexture(GL_TEXTURE_2D, random_texture_);
+
+    glEnable(GL_STENCIL_TEST);
+    glClear(GL_STENCIL_BUFFER_BIT);
+    glStencilFunc(GL_ALWAYS, 1, 0XFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    glStencilMask(0xFF);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glDepthMask(GL_FALSE);
+    adaptive_sampling_shader_.drawIndexed(GL_TRIANGLES, 0, 2);
+    glDisable(GL_STENCIL_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_STENCIL_TEST);
+    glEnable(GL_BLEND);
+    glEnable(GL_ALPHA);
 }

@@ -22,7 +22,6 @@ AnalyticRenderer::AnalyticRenderer(Eigen::Vector2i &screen_size)
     {
         // Load and initialzer the shaders.
         Resource vertex_source = LOAD_RESOURCE(background_vert_glsl);
-        Resource geometry_source = LOAD_RESOURCE(background_geom_glsl);
         Resource fragment_source = LOAD_RESOURCE(background_frag_glsl);
         background_shader_.init(
             "Background",
@@ -34,9 +33,6 @@ AnalyticRenderer::AnalyticRenderer(Eigen::Vector2i &screen_size)
 
 void AnalyticRenderer::setAtoms(const Atoms atoms)
 {
-    if (atoms.size() == 0) {
-        return;
-    }
     analytic_shader_.bind();
     glDisable(GL_BLEND);
 
@@ -46,8 +42,12 @@ void AnalyticRenderer::setAtoms(const Atoms atoms)
     atoms_.setCoordinates(coordinates);
 
     // Compute the side of a cube that contains all atoms.
-    box_size_ = (coordinates.colwise().maxCoeff() - coordinates.colwise().minCoeff()).maxCoeff();
-    box_size_ *= 1.5;
+    if (atoms_.size() == 0) {
+        box_size_ = 1.0;
+    }else{
+        box_size_ = (coordinates.colwise().maxCoeff() - coordinates.colwise().minCoeff()).maxCoeff();
+        box_size_ *= 1.5;
+    }
 
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
         sphere_data(atoms_.size(), 4);

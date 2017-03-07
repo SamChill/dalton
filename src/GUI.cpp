@@ -22,7 +22,7 @@ using namespace nanogui;
 
 
 GUI::GUI() :
-    nanogui::Screen(Eigen::Vector2i(1024, 768), "Dalton"),
+    nanogui::Screen(Eigen::Vector2i(1280, 720), "Dalton"),
     performance_monitor_(1.00),
     arcball_(2.0f),
     radius_scale_(1.0),
@@ -250,16 +250,6 @@ GUI::GUI() :
     );
 
 
-    gui->addGroup("Performance");
-    fps_label_ = new Label(window, "0.0");
-    gui->addWidget("fps", fps_label_);
-
-    render_time_label_ = new Label(window, "0.0");
-    gui->addWidget("render time (ms)", render_time_label_);
-
-    samples_label_ = new Label(window, "0");
-    gui->addWidget("monte carlo samples", samples_label_);
-
     analytic_presets_box->setCallback(
         [=](int i) {
             // 2D
@@ -362,6 +352,7 @@ GUI::GUI() :
 
             setRenderMethod(render_method);
         }
+
     );
     path_tracing_presets_box->setEnabled(false);
     resolution_factor_box->setEnabled(false);
@@ -371,6 +362,18 @@ GUI::GUI() :
     focal_strength_box->setEnabled(false);
     ambient_light_box->setEnabled(false);
     direct_light_box->setEnabled(false);
+
+
+    ref<Window> performance_window = gui->addWindow(Eigen::Vector2i(10, 10), "Performance");
+    //gui->addGroup("Performance");
+    fps_label_ = new Label(performance_window, "     0.0");
+    gui->addWidget("fps", fps_label_);
+
+    render_time_label_ = new Label(performance_window, "     0.0");
+    gui->addWidget("render time (ms)", render_time_label_);
+
+    samples_label_ = new Label(performance_window, "0");
+    gui->addWidget("monte carlo samples", samples_label_);
 
     // Finalize widget setup.
     performLayout();
