@@ -22,6 +22,10 @@ void main() {
     vec3 sem = stddev / sqrt(N);
     float error = length(sem);
 
+    if (weight == 0.0) {
+        return;
+    }
+
     if (weight*rand() > error && N > 10) {
         discard;
     }
