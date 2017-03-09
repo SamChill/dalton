@@ -4,9 +4,10 @@ uniform sampler2D accumulator_texture;
 uniform sampler2D statistics_texture;
 uniform sampler2D random_texture;
 uniform vec2 rand_offset;
+uniform float weight;
 
 float rand() {
-    return texture(random_texture, uv + rand_offset).x;
+    return 0.5*texture(random_texture, uv + rand_offset).x + 0.5;
 }
 
 const float tol = 0.1;
@@ -21,31 +22,7 @@ void main() {
     vec3 sem = stddev / sqrt(N);
     float error = length(sem);
 
-    //if (rand() < 0.5) {
-    //    discard;
-    //}
-
-    //if (error < tol && N > 10) {
-    //    discard;
-    //}
-
-    //if (length(sem) < 0.1) discard;
-
-    //if (N > 20 && length(sem) < tol) {
-    //    discard;
-    //}
-
-    //float r = rand() + 1;
-
-    //if (N < 10) {
-    //    return;
-    //}
-
-    //if (N > 50 && length(sem) < 0.01) {
-    //    discard;
-    //}
-
-    //if (r*exp(-0.1*N) > length(sem)) {
-    //    discard;
-    //}
+    if (weight*rand() > error && N > 10) {
+        discard;
+    }
 }

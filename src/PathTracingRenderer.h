@@ -27,9 +27,11 @@ public:
                 float focal_strength,
                 float ambient_light,
                 float direct_light,
-                AnalyticRenderer *analytic_renderer);
+                AnalyticRenderer *analytic_renderer,
+                bool adaptive_sampling_enabled);
 
     GLuint samples;
+    float adaptive_sampling_weight;
 
 private:
     Atoms atoms_;

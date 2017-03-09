@@ -43,6 +43,7 @@ private:
     nanogui::Label *fps_label_;
     nanogui::Label *render_time_label_;
     nanogui::Label *samples_label_;
+    nanogui::Label *adaptive_weight_label_;
     nanogui::Button *play_button_;
     nanogui::ComboBox *render_method_box_;
     nanogui::IntBox<int> *neighbor_count_box_;
@@ -61,4 +62,5 @@ private:
     float ambient_light_;
     float direct_light_;
     Eigen::Vector2i initial_mouse_coordinates_, shift_;
+    bool adaptive_sampling_;
 };

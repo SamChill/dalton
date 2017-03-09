@@ -8,6 +8,7 @@ PathTracingRenderer::PathTracingRenderer(Eigen::Vector2i &screen_size)
 ,atoms_(Atoms())
 ,resized_(false)
 ,sampling_weight_(1.0)
+,adaptive_sampling_weight(1.0)
 ,resolution_factor_(1)
 {
     {
@@ -114,6 +115,7 @@ void PathTracingRenderer::resize(const Eigen::Vector2i &size) {
 void PathTracingRenderer::reinitialize()
 {
     samples = 0;
+    adaptive_sampling_weight = 0.1;
     render_shader_.bind();
 
     GLint num_atoms = atoms_.size();
@@ -278,7 +280,8 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
                                  float focal_strength,
                                  float ambient_light,
                                  float direct_light,
-                                 AnalyticRenderer *analytic_renderer)
+                                 AnalyticRenderer *analytic_renderer,
+                                 bool adaptive_sampling_enabled)
 {
     if (resized_) {
         resized_ = false;
@@ -339,6 +342,7 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
 
     glBindFramebuffer(GL_FRAMEBUFFER, accumulator_framebuffers_[write_idx]);
     glViewport(0, 0, scaled_screen_size(0), scaled_screen_size(1));
+    double dt;
     if (samples == -1) {
         analytic_renderer->render(
             projection_matrix,
@@ -360,7 +364,10 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
         }else{
             glStencilFunc(GL_EQUAL, 1, 0xFF);
         }
+        double t0 = glfwGetTime();
         render_shader_.drawIndexed(GL_TRIANGLES, 0, 2);
+        glFinish();
+        dt = glfwGetTime() - t0;
         glDisable(GL_STENCIL_TEST);
     }
     samples += 1;
@@ -390,6 +397,23 @@ void PathTracingRenderer::render(Eigen::Matrix4f &projection_matrix,
     adaptive_sampling_shader_.setUniform("accumulator_texture", accumulator_texture_unit_);
     adaptive_sampling_shader_.setUniform("statistics_texture", statistics_texture_unit_);
     adaptive_sampling_shader_.setUniform("random_texture", random_texture_unit_);
+    // Target fps of 30.
+    if (dt < 1.0/30.0) {
+        // if we are rendering frames too fast, then decrease the weight, which increase the
+        // probability that we include a pixel.
+        adaptive_sampling_weight *= 0.9;
+    }else{
+        // if we are rendering frames too slow, then increase the weight, which decreases the
+        // probability that we include a pixel.
+        adaptive_sampling_weight *= 1.1;
+    }
+    adaptive_sampling_weight = std::min(0.4f, adaptive_sampling_weight);
+    adaptive_sampling_weight = std::max(1e-6f, adaptive_sampling_weight);
+    if (!adaptive_sampling_enabled) {
+        adaptive_sampling_weight = 0.0;
+    }
+
+    adaptive_sampling_shader_.setUniform("weight", adaptive_sampling_weight);
     rand_offset = Eigen::Vector2f::Random(2);
     adaptive_sampling_shader_.setUniform("rand_offset", rand_offset);
     glActiveTexture(GL_TEXTURE0 + accumulator_texture_unit_);

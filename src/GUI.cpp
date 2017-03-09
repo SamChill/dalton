@@ -45,7 +45,8 @@ GUI::GUI() :
     focal_distance_(0.0),
     focal_strength_(0.0),
     ambient_light_(1.0),
-    direct_light_(0.0)
+    direct_light_(0.0),
+    adaptive_sampling_(true)
 {
     // hack to support high-dpi displays.
     resizeEvent(mSize);
@@ -55,7 +56,7 @@ GUI::GUI() :
 
     // Setup Widgets.
     FormHelper *gui = new FormHelper(this);
-    ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "");
+    ref<Window> window = gui->addWindow(Eigen::Vector2i(0, 0), "");
 
     gui->addGroup("File");
     gui->addButton("Open", [this]() {
@@ -167,6 +168,14 @@ GUI::GUI() :
     );
     path_tracing_presets_box->setFontSize(16);
     gui->addWidget("preset", path_tracing_presets_box);
+
+    CheckBox *adaptive_sampling_box = gui->addVariable("adaptive sampling", adaptive_sampling_);
+    adaptive_sampling_box->setCallback(
+        [this](bool e) {
+            adaptive_sampling_ = e;
+            path_tracing_renderer_.adaptive_sampling_weight = 0.4;
+        }
+    );
 
     ComboBox *resolution_factor_box = new ComboBox(
         window,
@@ -375,6 +384,9 @@ GUI::GUI() :
     samples_label_ = new Label(performance_window, "0");
     gui->addWidget("monte carlo samples", samples_label_);
 
+    adaptive_weight_label_ = new Label(performance_window, "0");
+    gui->addWidget("adaptive weight", adaptive_weight_label_);
+
     // Finalize widget setup.
     performLayout();
 }
@@ -480,7 +492,8 @@ void GUI::drawContents() {
             focal_strength_,
             ambient_light_,
             direct_light_,
-            &analytic_renderer_
+            &analytic_renderer_,
+            adaptive_sampling_
         );
     }
 
@@ -489,4 +502,5 @@ void GUI::drawContents() {
     fps_label_->setCaption(std::to_string(performance_monitor_.fps()).substr(0,5));
     render_time_label_->setCaption(std::to_string(performance_monitor_.renderTime()).substr(0,5));
     samples_label_->setCaption(std::to_string(path_tracing_renderer_.samples));
+    adaptive_weight_label_->setCaption(std::to_string(path_tracing_renderer_.adaptive_sampling_weight).substr(0,5));
 }

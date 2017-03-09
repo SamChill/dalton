@@ -16,10 +16,6 @@ void main() {
     vec3 sem = stddev / sqrt(N);
     float error = length(sem);
 
-    if (error < tol) {
-        color.rgb = mean.rgb;
-    }else{
-        color.rgb = vec3(1.0, 0.0, 1.0);
-    }
+    color.rgb = mean.rgb;
     color.a = 1.0;
 }
