@@ -1,9 +1,9 @@
 
 # Dalton
 <img src="https://samchill.github.io/dalton/images/john_dalton.jpg" alt="John Dalton Portrait" align="right" height="100" />
-Dalton is an atomic structure visualizer that supports many different rendering styles. Most notably, it implements a [path tracing][1] renderer that uses Monte Carlo sampling to provide photorealistic images. Path tracing is able to simulate soft shadows, ambient occlusion and depth of field. In addition to the path tracing renderer, Dalton also includes a much faster "analytic" rendering engine that is able to display approximate ambient occlusion and depth aware outlines.
+Dalton is an atomic structure visualizer that supports many different rendering styles. Most notably, it implements a [path tracing] renderer that uses Monte Carlo sampling to provide photorealistic images. Path tracing is able to simulate soft shadows, ambient occlusion and depth of field. In addition to the path tracing renderer, Dalton also includes a much faster "analytic" rendering engine that is able to display approximate ambient occlusion and depth aware outlines.
 
-[1]: https://en.wikipedia.org/wiki/Path_tracing
+[path tracing]: https://en.wikipedia.org/wiki/Path_tracing
 
 ## Path Tracing
 Path tracing is a global illumination rendering algorithm. Images produced using global illumination, include the effects of both direct and indirect light. Direct light is light that only takes once bounce to travel from the light source to the camera, while indirect light is all light that reaches the camera after more than one bounce.
