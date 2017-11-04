@@ -1,6 +1,7 @@
 #include "PathTracingRenderer.h"
 
 #include <Resource.h>
+#include <random>
 
 PathTracingRenderer::PathTracingRenderer(Eigen::Vector2i &screen_size)
 :screen_size_(screen_size)
